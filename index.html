@@ -80,9 +80,18 @@ INICIAR
 <!-- EXECUÇÃO -->
 <section id="telaExecucao" class="hidden">
 
-<div class="sticky top-0 bg-slate-950 py-4 mb-4">
-<h2 class="text-lg font-semibold mb-2">Tempo</h2>
-<div id="timer" class="text-3xl font-bold text-pinkshock">00:00</div>
+<div class="sticky top-0 bg-slate-950 py-4 mb-4 border-b border-slate-800">
+
+<div>
+<span class="text-sm text-slate-400">Tempo de treino</span>
+<div id="timerTotal" class="text-3xl font-bold text-pinkshock">00:00</div>
+</div>
+
+<div class="mt-2">
+<span class="text-sm text-slate-400">Descanso</span>
+<div id="timerDescanso" class="text-xl font-semibold">--:--</div>
+</div>
+
 </div>
 
 <div id="listaExerciciosExec"></div>
@@ -96,7 +105,6 @@ Finalizar treino
 
 </div>
 
-<!-- MENU -->
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
 <div class="max-w-xl mx-auto flex">
 <button id="navHome"
@@ -110,13 +118,49 @@ Finalizar treino
 </div>
 </nav>
 
-<input type="file" id="inputImport" accept="application/json" class="hidden">
-
 <script>
-const KEY = "treinos_app_final";
+const KEY = "treinos_app_final_v2";
 let treinoAtual = null;
-let timerInterval = null;
-let tempoRestante = 0;
+
+let totalInterval = null;
+let descansoInterval = null;
+
+let totalSegundos = 0;
+let descansoSegundos = 0;
+
+function formatar(seg){
+  const m = String(Math.floor(seg/60)).padStart(2,"0");
+  const s = String(seg%60).padStart(2,"0");
+  return `${m}:${s}`;
+}
+
+function iniciarTempoTotal(){
+  clearInterval(totalInterval);
+  totalSegundos = 0;
+  document.getElementById("timerTotal").textContent = "00:00";
+
+  totalInterval = setInterval(()=>{
+    totalSegundos++;
+    document.getElementById("timerTotal").textContent = formatar(totalSegundos);
+  },1000);
+}
+
+function iniciarDescanso(seg){
+  clearInterval(descansoInterval);
+  descansoSegundos = seg;
+  document.getElementById("timerDescanso").textContent = formatar(seg);
+
+  descansoInterval = setInterval(()=>{
+    descansoSegundos--;
+    document.getElementById("timerDescanso").textContent = formatar(descansoSegundos);
+
+    if(descansoSegundos<=0){
+      clearInterval(descansoInterval);
+      document.getElementById("timerDescanso").textContent="--:--";
+      navigator.vibrate?.(200);
+    }
+  },1000);
+}
 
 function getTreinos(){
   return JSON.parse(localStorage.getItem(KEY) || "[]");
@@ -124,27 +168,6 @@ function getTreinos(){
 
 function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
-}
-
-function formatarTempo(seg){
-  const m = String(Math.floor(seg/60)).padStart(2,"0");
-  const s = String(seg%60).padStart(2,"0");
-  return `${m}:${s}`;
-}
-
-function iniciarTimer(seg){
-  clearInterval(timerInterval);
-  tempoRestante = seg;
-  document.getElementById("timer").textContent = formatarTempo(seg);
-
-  timerInterval = setInterval(()=>{
-    tempoRestante--;
-    document.getElementById("timer").textContent = formatarTempo(tempoRestante);
-    if(tempoRestante<=0){
-      clearInterval(timerInterval);
-      navigator.vibrate?.(200);
-    }
-  },1000);
 }
 
 function parseLinhas(raw){
@@ -164,6 +187,7 @@ function renderHome(){
   const treinos = getTreinos();
   const host = document.getElementById("listaTreinos");
   host.innerHTML="";
+
   if(!treinos.length){
     host.innerHTML="<p class='text-slate-400'>Nenhum treino criado.</p>";
     return;
@@ -201,6 +225,7 @@ function renderVisual(){
 }
 
 function iniciarExecucao(){
+  iniciarTempoTotal();
   mostrar("telaExecucao");
   renderExecucao();
 }
@@ -230,12 +255,15 @@ function marcarSerie(i){
   const e = treinoAtual.exercicios[i];
   if(e.feitas < e.series){
     e.feitas++;
-    iniciarTimer(e.descanso);
+    iniciarDescanso(e.descanso);
     renderExecucao();
   }
 }
 
 function finalizar(){
+  clearInterval(totalInterval);
+  clearInterval(descansoInterval);
+  document.getElementById("timerDescanso").textContent="--:--";
   treinoAtual.exercicios.forEach(e=>e.feitas=0);
   mostrar("telaHome");
   renderHome();

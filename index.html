@@ -31,8 +31,17 @@ tailwind.config = {
 
   <!-- semana -->
   <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4">
-    <div class="text-sm font-semibold">Sua semana</div>
-    <div id="semanaResumo" class="text-sm text-slate-300 mt-1">Você treinou 0 dia(s) esta semana.</div>
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="text-sm font-semibold">Sua semana</div>
+        <div id="semanaResumo" class="text-sm text-slate-300 mt-1">Você treinou 0 dia(s) esta semana.</div>
+      </div>
+
+      <button id="btnZerarSemana"
+        class="shrink-0 rounded-xl px-3 py-2 bg-slate-800 text-sm font-semibold text-slate-200 hover:bg-slate-700">
+        Zerar
+      </button>
+    </div>
 
     <div id="semanaBolinhas" class="mt-3 flex items-center justify-between gap-2"></div>
 
@@ -750,9 +759,23 @@ function registrarSessaoTreino(treinoNome, fimMs){
     dayKey: dayKey(Number(fimMs) || agoraMs())
   });
 
-  // guarda só as últimas 180 sessões (pra não crescer infinito)
   const trimmed = list.slice(-180);
   setSessions(trimmed);
+}
+
+function zerarSemanaAtual(){
+  const { daysMs } = getSemanaAtualDatas();
+  const minMs = Math.min(...daysMs);
+  const maxMs = Math.max(...daysMs) + 86400000 - 1; // fim do domingo
+
+  const list = getSessions();
+  const filtrado = list.filter(s=>{
+    const ms = Number(s?.fimMs) || 0;
+    return !(ms >= minMs && ms <= maxMs);
+  });
+
+  setSessions(filtrado);
+  renderHome();
 }
 
 function normalizarTreinos(treinos){
@@ -773,7 +796,6 @@ function normalizarTreinos(treinos){
       if(typeof t.periodo.fim === "undefined") t.periodo.fim = null;
     }
 
-    // cardio
     if(typeof t.cardio !== "object" || t.cardio === null){
       t.cardio = { enabled: false, items: [] };
     } else {
@@ -785,7 +807,6 @@ function normalizarTreinos(treinos){
       }));
     }
 
-    // alternativas
     if(!Array.isArray(t.exercicios)) t.exercicios = [];
     t.exercicios.forEach(e=>{
       if(typeof e.altObrigatorio !== "boolean") e.altObrigatorio = false;
@@ -796,7 +817,7 @@ function normalizarTreinos(treinos){
         reps: Number(a?.reps) || null,
         descanso: (typeof a?.descanso === "number") ? a.descanso : (Number(a?.descanso) || null)
       }));
-      if(typeof e.selectedAlt !== "number") e.selectedAlt = 0; // 0=plano A, 1..=alternativas
+      if(typeof e.selectedAlt !== "number") e.selectedAlt = 0;
     });
 
     if(t.lastSession && typeof t.lastSession !== "object"){
@@ -1036,7 +1057,6 @@ function abrirConfigAlternativas(){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de configurar alternativas.");
   }
 
-  // recria draft e tenta reaproveitar configs anteriores por índice + nome
   const prev = altDraft;
   altDraft = exercicios.map((e, idx)=>{
     const p = prev[idx];
@@ -1084,7 +1104,6 @@ function limparAlternativasCadastro(){
 }
 
 function aplicarAlternativasNoPlanoA(exercicios){
-  // aplica altObrigatorio + alternativas parseadas do altDraft
   const out = exercicios.map((e, idx)=>{
     const d = altDraft[idx];
     if(d && d.nome === e.nome){
@@ -1257,10 +1276,6 @@ function renderSemana(){
   daysMs.forEach((ms, idx)=>{
     const treinou = trainedSet.has(ms);
 
-    // cores:
-    // hoje: azul se não treinou, verde se treinou
-    // passado: verde se treinou, vermelho se não treinou
-    // futuro: slate
     let cor = "bg-slate-700 border-slate-600";
     if(ms < today0){
       cor = treinou ? "bg-green-500 border-green-400" : "bg-red-500 border-red-400";
@@ -1289,7 +1304,6 @@ function renderProgressoPeriodo(){
 
   const today0 = inicioDoDiaMs();
 
-  // pega o primeiro treino que tem inicio e fim e cujo período inclui hoje
   const atual = treinos.find(t=>{
     const ini = t?.periodo?.inicio;
     const fim = t?.periodo?.fim;
@@ -1696,7 +1710,6 @@ function finalizar(){
     treinos[treinoAtualIndex].lastSession = { inicioMs, fimMs, duracaoSeg };
     treinos[treinoAtualIndex].lastSessionSwaps = sessionSwaps;
 
-    // registra para a semana (bolinhas)
     registrarSessaoTreino(treinos[treinoAtualIndex].nome, fimMs);
   }
 
@@ -1825,7 +1838,7 @@ function abrirEdicaoTreino(i){
     limparCardioCadastroUI();
   }
 
-  // alternativas (preenche e mostra se existir)
+  // alternativas
   altDraft = (t.exercicios || []).map((e)=>({
     ...e,
     altObrigatorio: !!e.altObrigatorio,
@@ -1895,6 +1908,13 @@ document.getElementById("navBackup").onclick = () => {
   abrirMenuBackup();
 };
 
+/* semana: zerar */
+document.getElementById("btnZerarSemana").onclick = () => {
+  if(confirm("Zerar a contagem desta semana?\n\nIsso vai apagar os dias marcados desta semana (sem mexer nos treinos).")){
+    zerarSemanaAtual();
+  }
+};
+
 /* modal troca */
 document.getElementById("btnFecharModalTroca").onclick = fecharModalTroca;
 document.getElementById("modalTroca").addEventListener("click", (ev)=>{
@@ -1949,7 +1969,6 @@ document.getElementById("btnSalvar").onclick = () => {
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
   }
 
-  // aplica alternativas do draft
   if(altDraft.length){
     try{
       exercicios = aplicarAlternativasNoPlanoA(exercicios);
@@ -1983,7 +2002,6 @@ document.getElementById("btnSalvar").onclick = () => {
   };
 
   if(typeof editIndex === "number" && treinos[editIndex]){
-    // preserva stats antigas
     payload.stats = treinos[editIndex].stats || { feitos: 0, ultimaVezMs: null };
     payload.lastSession = treinos[editIndex].lastSession || null;
     payload.lastSessionSwaps = treinos[editIndex].lastSessionSwaps || [];

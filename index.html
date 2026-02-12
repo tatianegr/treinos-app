@@ -49,8 +49,8 @@ tailwind.config = {
     placeholder="Nome do treino" />
 
   <textarea id="inputRaw"
-    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[140px]"
-    placeholder="Agachamento | 4x10 | descanso 60"></textarea>
+    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[160px]"
+    placeholder="Agachamento | 2x10 | descanso 60"></textarea>
 
   <div class="flex gap-2 mt-3">
     <button id="btnSalvar"
@@ -63,11 +63,16 @@ tailwind.config = {
     </button>
   </div>
 
-  <p class="text-xs text-slate-400 mt-3 leading-relaxed">
-    Formato por linha:<br>
-    <span class="text-slate-200">Exercício | 4x10 | descanso 60</span><br>
-    Se não informar descanso: 60s. Se não informar séries: 3.
-  </p>
+  <div class="mt-4 p-3 rounded-xl border border-slate-800 bg-slate-900/40">
+    <div class="text-xs text-slate-400 leading-relaxed">
+      Formato por linha (sem adivinhação):
+      <div class="mt-2 text-slate-200">Exercício | 2x10 | descanso 60</div>
+      <div class="mt-2">
+        • Se não informar <span class="text-slate-200">2x10</span>, o exercício fica inválido (pra você corrigir)<br>
+        • Se não informar descanso, fica “sem descanso definido”
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- VISUALIZAÇÃO -->
@@ -75,11 +80,11 @@ tailwind.config = {
   <button id="btnVoltarHome" class="text-sm text-pinkshock mb-4">← Voltar</button>
   <h1 id="tituloTreino" class="text-2xl font-semibold mb-3"></h1>
 
-  <!-- “linha por linha” -->
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
     <span>séries • reps • descanso</span>
   </div>
+
   <div id="listaExerciciosVisual" class="border border-slate-800 rounded-xl overflow-hidden"></div>
 
   <button id="btnIniciar"
@@ -91,25 +96,18 @@ tailwind.config = {
 <!-- EXECUÇÃO -->
 <section id="telaExecucao" class="hidden">
 
-  <!-- TOPO FIXO: tempo total + descanso -->
+  <!-- TOPO FIXO: CRONÔMETRO DO TREINO (GRANDE) -->
   <div class="sticky top-0 bg-slate-950 pt-4 pb-3 mb-4 border-b border-slate-800 z-10">
-    <div class="flex items-end justify-between gap-4">
-      <div>
-        <span class="text-sm text-slate-400">Tempo de treino</span>
-        <div id="timerTotal" class="text-3xl font-bold text-pinkshock">00:00</div>
-      </div>
-
-      <div class="text-right">
-        <span class="text-sm text-slate-400">Descanso</span>
-        <div id="timerDescansoMini" class="text-xl font-semibold text-slate-200">--:--</div>
-      </div>
+    <div class="text-center">
+      <div class="text-sm text-slate-400">Cronômetro do treino</div>
+      <div id="timerTotal" class="text-5xl font-extrabold text-pinkshock tracking-tight">00:00</div>
     </div>
 
-    <!-- Banner descanso (só aparece durante descanso) -->
-    <div id="boxDescanso" class="hidden mt-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+    <!-- DESCANSO: TOTALMENTE SEPARADO -->
+    <div id="boxDescanso" class="hidden mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
       <div class="flex items-center justify-between gap-3">
         <div>
-          <div class="text-xs uppercase tracking-wide text-slate-400">em descanso</div>
+          <div class="text-xs uppercase tracking-wide text-slate-400">descanso</div>
           <div class="flex items-baseline gap-2">
             <div id="timerDescanso" class="text-2xl font-bold text-slate-100">00:00</div>
             <div id="descansoMeta" class="text-sm text-slate-400">de 00:00</div>
@@ -130,7 +128,7 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- “linha por linha” -->
+  <!-- LISTA LINHA POR LINHA -->
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
     <span>séries</span>
@@ -170,6 +168,8 @@ let totalInterval = null;
 let descansoInterval = null;
 
 let totalSegundos = 0;
+
+// descanso (regressivo) separado
 let descansoSegundos = 0;
 let descansoTotal = 0;
 
@@ -202,7 +202,7 @@ function setNav(ativo){
 /* =========================
    TIMERS
 ========================= */
-function iniciarTempoTotal(){
+function iniciarCronometroTreino(){
   clearInterval(totalInterval);
   totalSegundos = 0;
   document.getElementById("timerTotal").textContent = "00:00";
@@ -215,14 +215,12 @@ function iniciarTempoTotal(){
 
 function atualizarUI_Descanso(){
   const box = document.getElementById("boxDescanso");
-  const mini = document.getElementById("timerDescansoMini");
   const timer = document.getElementById("timerDescanso");
   const meta = document.getElementById("descansoMeta");
   const barra = document.getElementById("barraDescanso");
 
   if(descansoSegundos > 0){
     box.classList.remove("hidden");
-    mini.textContent = formatar(descansoSegundos);
     timer.textContent = formatar(descansoSegundos);
     meta.textContent = `de ${formatar(descansoTotal)}`;
 
@@ -230,7 +228,6 @@ function atualizarUI_Descanso(){
     barra.style.width = pct + "%";
   } else {
     box.classList.add("hidden");
-    mini.textContent = "--:--";
     timer.textContent = "00:00";
     meta.textContent = "de 00:00";
     barra.style.width = "0%";
@@ -238,9 +235,14 @@ function atualizarUI_Descanso(){
 }
 
 function iniciarDescanso(seg){
-  clearInterval(descansoInterval);
+  const s = Number(seg);
+  if(!Number.isFinite(s) || s <= 0){
+    // sem descanso definido: não inicia
+    return;
+  }
 
-  descansoTotal = Math.max(1, Number(seg) || 60);
+  clearInterval(descansoInterval);
+  descansoTotal = Math.floor(s);
   descansoSegundos = descansoTotal;
 
   atualizarUI_Descanso();
@@ -261,6 +263,7 @@ function iniciarDescanso(seg){
 function pularDescanso(){
   clearInterval(descansoInterval);
   descansoSegundos = 0;
+  descansoTotal = 0;
   atualizarUI_Descanso();
 }
 
@@ -275,7 +278,7 @@ function setTreinos(data){
 }
 
 /* =========================
-   PARSER
+   PARSER (SEM ADIVINHAÇÃO)
 ========================= */
 function parseLinhas(raw){
   return raw
@@ -285,18 +288,25 @@ function parseLinhas(raw){
     .map(l=>{
       const partes = l.split("|").map(p=>p.trim());
 
-      // "4x10" => series=4, reps=10
-      const m = (partes[1] || "").match(/(\d+)\s*x\s*(\d+)?/i);
-      const series = m ? Number(m[1]) : 3;
-      const reps = (m && m[2]) ? Number(m[2]) : null;
+      const nome = partes[0] || "Exercício";
 
-      const descansoMatch = (partes[2] || "").match(/(\d+)/);
+      // séries e reps: exige formato N x M
+      // Ex: "2x10" -> series=2 reps=10
+      const sr = (partes[1] || "").match(/^\s*(\d+)\s*x\s*(\d+)\s*$/i);
+
+      // descanso: pega número se houver (ex: "descanso 60" / "60")
+      const dm = (partes[2] || "").match(/(\d+)/);
+
+      const series = sr ? Number(sr[1]) : null;
+      const reps  = sr ? Number(sr[2]) : null;
+
+      const descanso = dm ? Number(dm[1]) : null;
 
       return {
-        nome: partes[0] || "Exercício",
-        series,
-        reps, // pode ser null
-        descanso: descansoMatch ? Number(descansoMatch[1]) : 60,
+        nome,
+        series,   // null se não informado corretamente
+        reps,     // null se não informado corretamente
+        descanso, // null se não informado
         feitas: 0
       };
     });
@@ -333,10 +343,11 @@ function renderHome(){
 function abrirTreino(i){
   treinoAtual = getTreinos()[i];
 
-  // garante campos novos em treinos antigos
+  // normaliza pra não quebrar treinos antigos
   (treinoAtual.exercicios || []).forEach(e=>{
+    if(typeof e.series === "undefined") e.series = null;
     if(typeof e.reps === "undefined") e.reps = null;
-    if(typeof e.descanso !== "number") e.descanso = 60;
+    if(typeof e.descanso === "undefined") e.descanso = null;
     if(typeof e.feitas !== "number") e.feitas = 0;
   });
 
@@ -356,21 +367,28 @@ function renderVisual(){
   }
 
   exs.forEach((e, idx)=>{
-    const linhaBase = "flex items-center justify-between gap-3 px-3 py-3 bg-slate-900";
     const borda = idx === 0 ? "" : " border-t border-slate-800";
-    const repsTxt = e.reps ? `${e.reps}` : "-";
+    const seriesTxt = (e.series && e.reps) ? `${e.series}` : "—";
+    const repsTxt = (e.series && e.reps) ? `${e.reps}` : "—";
+    const descansoTxt = (e.descanso || e.descanso === 0) ? `${e.descanso ?? "—"}s` : "—";
+
+    const invalido = (!e.series || !e.reps);
+    const badge = invalido
+      ? `<span class="ml-2 text-[10px] px-2 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/25">corrigir 2x10</span>`
+      : ``;
+
     host.innerHTML += `
-      <div class="${linhaBase}${borda}">
+      <div class="flex items-center justify-between gap-3 px-3 py-3 bg-slate-900${borda}">
         <div class="min-w-0">
-          <div class="font-medium truncate">${e.nome}</div>
-          <div class="text-xs text-slate-500">descanso ${e.descanso}s</div>
+          <div class="font-medium truncate">${e.nome}${badge}</div>
+          <div class="text-xs text-slate-500">${e.descanso ? `descanso ${e.descanso}s` : `sem descanso definido`}</div>
         </div>
         <div class="text-right text-sm text-slate-200 shrink-0">
-          <span class="text-slate-300">${e.series}</span>
+          <span class="text-slate-300">${seriesTxt}</span>
           <span class="text-slate-500"> • </span>
           <span class="text-slate-300">${repsTxt}</span>
           <span class="text-slate-500"> • </span>
-          <span class="text-slate-300">${e.descanso}s</span>
+          <span class="text-slate-300">${descansoTxt}</span>
         </div>
       </div>
     `;
@@ -378,14 +396,11 @@ function renderVisual(){
 }
 
 function iniciarExecucao(){
-  // cronômetro principal começa AQUI, no clique do INICIAR
-  iniciarTempoTotal();
+  // começa só ao clicar INICIAR
+  iniciarCronometroTreino();
 
   // limpa descanso ao iniciar
-  clearInterval(descansoInterval);
-  descansoSegundos = 0;
-  descansoTotal = 0;
-  atualizarUI_Descanso();
+  pularDescanso();
 
   mostrar("telaExecucao");
   renderExecucao();
@@ -402,34 +417,39 @@ function renderExecucao(){
   }
 
   exs.forEach((e, i)=>{
-    const repsTxt = e.reps ? `${e.reps} reps` : "";
-    const sub = `${e.series} séries${repsTxt ? " • " + repsTxt : ""} • descanso ${e.descanso}s`;
+    const invalido = (!e.series || !e.reps);
+    const seriesNum = invalido ? 0 : e.series;
 
-    const bolinhas = Array.from({length: e.series}).map((_, idx)=>{
-      const n = idx + 1;
-      const feita = n <= e.feitas;
-      const base = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border";
-      const cls = feita
-        ? "bg-pinkshock border-pinkshock text-white"
-        : "bg-slate-950 border-slate-700 text-slate-300";
-      return `
-        <button
-          class="${base} ${cls}"
-          onclick="marcarSerieEmIndice(${i}, ${n})"
-          aria-label="Série ${n}">
-          ${n}
-        </button>
-      `;
-    }).join("");
+    const sub = invalido
+      ? `defina séries e reps no cadastro (ex: 2x10)`
+      : `${e.series}x${e.reps} • ${e.descanso ? `descanso ${e.descanso}s` : `sem descanso definido`}`;
 
-    const linhaBase = "flex items-center justify-between gap-3 px-3 py-3 bg-slate-900";
+    const bolinhas = seriesNum > 0
+      ? Array.from({length: seriesNum}).map((_, idx)=>{
+          const n = idx + 1;
+          const feita = n <= e.feitas;
+          const base = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border";
+          const cls = feita
+            ? "bg-pinkshock border-pinkshock text-white"
+            : "bg-slate-950 border-slate-700 text-slate-300";
+          return `
+            <button
+              class="${base} ${cls}"
+              onclick="marcarSerieEmIndice(${i}, ${n})"
+              aria-label="Série ${n}">
+              ${n}
+            </button>
+          `;
+        }).join("")
+      : `<span class="text-xs text-red-300">inválido</span>`;
+
     const borda = i === 0 ? "" : " border-t border-slate-800";
 
     host.innerHTML += `
-      <div class="${linhaBase}${borda}">
+      <div class="flex items-center justify-between gap-3 px-3 py-3 bg-slate-900${borda}">
         <div class="min-w-0">
           <div class="font-medium truncate">${e.nome}</div>
-          <div class="text-xs text-slate-500">${sub}</div>
+          <div class="text-xs ${invalido ? "text-red-300" : "text-slate-500"}">${sub}</div>
         </div>
         <div class="shrink-0 flex gap-2 flex-wrap justify-end">
           ${bolinhas}
@@ -445,18 +465,25 @@ function renderExecucao(){
 function marcarSerieEmIndice(exIdx, serieNumero){
   const e = treinoAtual.exercicios[exIdx];
 
-  // Se clicar em uma série já feita -> volta pra trás (desmarca)
+  if(!e.series || !e.reps){
+    alert("Esse exercício está inválido. Volte e corrija o formato (ex: 2x10).");
+    return;
+  }
+
+  // desmarcar (voltar)
   if(serieNumero <= e.feitas){
     e.feitas = Math.max(0, serieNumero - 1);
     renderExecucao();
     return;
   }
 
-  // Se clicar numa série à frente -> marca até ela
+  // marcar pra frente
   e.feitas = Math.min(e.series, serieNumero);
 
-  // Ao marcar uma nova série (pra frente), inicia descanso
-  iniciarDescanso(e.descanso);
+  // inicia descanso apenas se ele estiver definido
+  if(e.descanso){
+    iniciarDescanso(e.descanso);
+  }
 
   renderExecucao();
 }
@@ -465,9 +492,7 @@ function finalizar(){
   clearInterval(totalInterval);
   clearInterval(descansoInterval);
 
-  descansoSegundos = 0;
-  descansoTotal = 0;
-  atualizarUI_Descanso();
+  pularDescanso();
 
   // reseta feitas pra próxima execução
   (treinoAtual.exercicios || []).forEach(e=>e.feitas=0);
@@ -522,12 +547,11 @@ function importarBackup(){
         if(typeof t?.nome !== "string" || !Array.isArray(t?.exercicios)){
           return alert("Arquivo inválido: estrutura inesperada.");
         }
-        // normaliza pra não quebrar caso venha de versões antigas
         t.exercicios.forEach(e=>{
+          if(typeof e.series === "undefined") e.series = null;
           if(typeof e.reps === "undefined") e.reps = null;
-          if(typeof e.descanso !== "number") e.descanso = 60;
+          if(typeof e.descanso === "undefined") e.descanso = null;
           if(typeof e.feitas !== "number") e.feitas = 0;
-          if(typeof e.series !== "number") e.series = 3;
         });
       }
 
@@ -565,8 +589,16 @@ document.getElementById("btnSalvar").onclick = () => {
   const raw = document.getElementById("inputRaw").value.trim();
   if(!nome || !raw) return alert("Preencha os campos");
 
+  const exercicios = parseLinhas(raw);
+
+  // bloqueia salvar se houver exercício sem "NxM"
+  const invalidos = exercicios.filter(e => !e.series || !e.reps);
+  if(invalidos.length){
+    return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
+  }
+
   const treinos = getTreinos();
-  treinos.push({nome, exercicios: parseLinhas(raw)});
+  treinos.push({nome, exercicios});
   setTreinos(treinos);
 
   document.getElementById("inputNome").value = "";

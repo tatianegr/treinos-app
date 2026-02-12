@@ -1,76 +1,101 @@
 <!doctype html>
 <html lang="pt-BR" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Treinos + Timer</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Treinos + Timer</title>
 
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0f172a">
-  <link rel="icon" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="icons/icon-192.png">
 
-  <script>tailwind.config = { darkMode: 'class' }</script>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
-<body class="bg-slate-950 text-slate-100">
-<div class="max-w-6xl mx-auto p-4">
-
-<h1 class="text-2xl font-semibold mb-6">Treinos + Timer</h1>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-<!-- CADASTRO -->
-<div class="bg-slate-900/40 border border-slate-800 p-4 rounded-2xl">
-  <h2 class="font-semibold mb-3">Cadastrar treino</h2>
-
-  <input id="inputNome"
-    class="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 mb-3"
-    placeholder="Nome do treino" />
-
-  <textarea id="inputRaw"
-    class="w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 min-h-[120px]"
-    placeholder="Agachamento | 4x10 | descanso 90"></textarea>
-
-  <div class="flex gap-2 mt-3">
-    <button id="btnSalvar"
-      class="flex-1 rounded-xl px-4 py-2 bg-emerald-600 hover:bg-emerald-500">
-      Salvar
-    </button>
-    <button id="btnLimpar"
-      class="rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
-      Limpar
-    </button>
-  </div>
-
-  <div class="flex gap-2 mt-3">
-    <button id="btnExportar"
-      class="flex-1 rounded-xl px-4 py-2 bg-indigo-600 hover:bg-indigo-500">
-      Exportar dados
-    </button>
-    <button id="btnImportar"
-      class="flex-1 rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
-      Importar dados
-    </button>
-  </div>
-
-  <input type="file" id="inputImport" accept="application/json" class="hidden">
-</div>
-
-<!-- LISTA -->
-<div class="bg-slate-900/40 border border-slate-800 p-4 rounded-2xl">
-  <h2 class="font-semibold mb-3">Treinos</h2>
-  <div id="listaTreinos"></div>
-</div>
-
-</div>
-</div>
+<script src="https://cdn.tailwindcss.com"></script>
 
 <script>
-const KEY = "treinos_app_v2";
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        pinkshock: '#ff2d8d'
+      }
+    }
+  }
+}
+</script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 pb-20">
+
+<div class="max-w-xl mx-auto p-4">
+
+<!-- TELA CADASTRAR -->
+<section id="telaCadastrar">
+<h1 class="text-2xl font-semibold mb-6">Novo treino</h1>
+
+<input id="inputNome"
+  class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3"
+  placeholder="Nome do treino" />
+
+<textarea id="inputRaw"
+  class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[120px]"
+  placeholder="Agachamento | 4x10 | descanso 90"></textarea>
+
+<div class="flex gap-2 mt-3">
+<button id="btnSalvar"
+  class="flex-1 rounded-xl px-4 py-2 bg-pinkshock hover:opacity-90 font-medium">
+Salvar
+</button>
+<button id="btnLimpar"
+  class="rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
+Limpar
+</button>
+</div>
+
+<div class="flex gap-2 mt-3">
+<button id="btnExportar"
+  class="flex-1 rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
+Exportar
+</button>
+<button id="btnImportar"
+  class="flex-1 rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
+Importar
+</button>
+</div>
+
+<input type="file" id="inputImport" accept="application/json" class="hidden">
+</section>
+
+
+<!-- TELA TREINOS -->
+<section id="telaTreinos" class="hidden">
+<h1 class="text-2xl font-semibold mb-6">Meus treinos</h1>
+<div id="listaTreinos"></div>
+</section>
+
+</div>
+
+
+<!-- MENU INFERIOR -->
+<nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
+<div class="max-w-xl mx-auto flex">
+
+<button id="navCadastrar"
+  class="flex-1 py-3 text-center text-sm font-medium text-pinkshock">
+➕ Cadastrar
+</button>
+
+<button id="navTreinos"
+  class="flex-1 py-3 text-center text-sm font-medium text-slate-400">
+📋 Treinos
+</button>
+
+</div>
+</nav>
+
+
+<script>
+const KEY = "treinos_app_v3";
 
 function getTreinos(){
   return JSON.parse(localStorage.getItem(KEY) || "[]");
@@ -84,10 +109,7 @@ function parseLinhas(raw){
   return raw.split("\\n").filter(Boolean).map(l => {
     const partes = l.split("|").map(p => p.trim());
     return {
-      nome: partes[0] || "Exercício",
-      series: 3,
-      reps: 10,
-      descanso: 60
+      nome: partes[0] || "Exercício"
     }
   });
 }
@@ -97,12 +119,29 @@ function renderLista(){
   const host = document.getElementById("listaTreinos");
   host.innerHTML = "";
 
+  if(!treinos.length){
+    host.innerHTML = "<p class='text-slate-400'>Nenhum treino salvo.</p>";
+    return;
+  }
+
   treinos.forEach((t,i)=>{
     const div = document.createElement("div");
-    div.className="border border-slate-800 p-2 rounded-xl mb-2";
-    div.innerHTML = t.nome;
+    div.className="border border-slate-800 bg-slate-900 rounded-xl p-3 mb-3";
+    div.innerHTML = `
+      <div class="flex justify-between items-center">
+        <span>${t.nome}</span>
+        <button onclick="excluir(${i})" class="text-xs text-pinkshock">Excluir</button>
+      </div>
+    `;
     host.appendChild(div);
   });
+}
+
+function excluir(i){
+  const treinos = getTreinos();
+  treinos.splice(i,1);
+  setTreinos(treinos);
+  renderLista();
 }
 
 document.getElementById("btnSalvar").onclick = () => {
@@ -119,6 +158,9 @@ document.getElementById("btnSalvar").onclick = () => {
 
   setTreinos(treinos);
   renderLista();
+
+  document.getElementById("inputNome").value="";
+  document.getElementById("inputRaw").value="";
 };
 
 document.getElementById("btnLimpar").onclick = () => {
@@ -156,14 +198,37 @@ document.getElementById("inputImport").addEventListener("change", function(){
     try{
       const dados = JSON.parse(e.target.result);
       localStorage.setItem(KEY, JSON.stringify(dados));
-      alert("Dados importados com sucesso!");
       renderLista();
+      alert("Dados importados!");
     }catch{
       alert("Arquivo inválido.");
     }
   };
   reader.readAsText(file);
 });
+
+
+// NAVEGAÇÃO
+const telaCadastrar = document.getElementById("telaCadastrar");
+const telaTreinos = document.getElementById("telaTreinos");
+
+document.getElementById("navCadastrar").onclick = ()=>{
+  telaCadastrar.classList.remove("hidden");
+  telaTreinos.classList.add("hidden");
+
+  navCadastrar.classList.add("text-pinkshock");
+  navTreinos.classList.remove("text-pinkshock");
+  navTreinos.classList.add("text-slate-400");
+};
+
+document.getElementById("navTreinos").onclick = ()=>{
+  telaCadastrar.classList.add("hidden");
+  telaTreinos.classList.remove("hidden");
+
+  navTreinos.classList.add("text-pinkshock");
+  navCadastrar.classList.remove("text-pinkshock");
+  navCadastrar.classList.add("text-slate-400");
+};
 
 renderLista();
 </script>

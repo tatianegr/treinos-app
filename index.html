@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Treinos + Timer</title>
+
+  <!-- PWA (vamos criar esses arquivos já já) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    .tap { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 tap">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-semibold">Treinos + Timer</h1>
+        <p class="text-slate-400 mt-1">Simples, direto, estilo “planilha que virou app” 😅</p>
+      </div>
+
+      <button id="btnToggleTheme"
+        class="rounded-xl px-3 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 transition">
+        Alternar tema
+      </button>
+    </div>
+
+    <!-- Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Cadastro -->
+      <section class="lg:col-span-1 rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
+        <h2 class="text-lg font-semibold mb-3">Cadastrar treino</h2>
+
+        <label class="text-sm text-slate-300">Nome do treino</label>
+        <input id="inputNome"
+          class="mt-1 w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-slate-600"
+          placeholder="Ex.: Pernas A" />
+
+        <label class="text-sm text-slate-300 block mt-4">Exercícios (1 por linha)</label>
+        <p class="text-xs text-slate-400 mt-1">
+          Formato: <span class="text-slate-300">Exercício | 4x10 | descanso 90</span>
+        </p>
+
+        <textarea id="inputRaw"
+          class="mt-2 w-full min-h-[170px] rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-slate-600"
+          placeholder="Agachamento | 4x10 | descanso 90
+Leg press | 3x12 | descanso 60
+Cadeira extensora | 3x12 | descanso 45"></textarea>
+
+        <div class="flex gap-2 mt-3">
+          <button id="btnSalvar"
+            class="flex-1 rounded-xl px-4 py-2 bg-emerald-600 hover:bg-emerald-500 transition font-medium">
+            Salvar
+          </button>
+          <button id="btnApagarTudo"
+            class="rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700 transition">
+            Limpar
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-400 mt-3">
+          Obs.: fica salvo no navegador (localStorage). Se você limpar o histórico, some.
+        </p>
+      </section>
+
+      <!-- Treinos + Execução -->
+      <section class="lg:col-span-2 grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <!-- Lista -->
+        <div class="rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">Treinos</h2>
+            <span id="badgeQtd" class="text-xs text-slate-300 bg-slate-800 rounded-full px-2 py-1">0</span>
+          </div>
+
+          <div id="listaTreinos" class="space-y-2"></div>
+
+          <div class="mt-3 text-xs text-slate-400">
+            Dica: clique num treino pra executar.
+          </div>
+        </div>
+
+        <!-- Execução -->
+        <div class="rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="text-lg font-semibold">Treino selecionado</h2>
+            <button id="btnResetProgresso"
+              class="rounded-xl px-3 py-2 bg-slate-800 hover:bg-slate-700 transition text-sm">
+              Zerar progresso
+            </button>
+          </div>
+
+          <div id="painelTreino" class="text-slate-400 text-sm">
+            Selecione um treino na lista 🙂
+          </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="xl:col-span-2 rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-lg font-semibold">Timer</h2>
+              <p id="timerLabel" class="text-sm text-slate-400 mt-1">Parado</p>
+            </div>
+
+            <div class="text-right">
+              <div id="timer" class="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums">00:00</div>
+              <div class="text-xs text-slate-400 mt-1">cronômetro / descanso</div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button class="btnPreset rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700 transition" data-sec="30">Descanso 30s</button>
+            <button class="btnPreset rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700 transition" data-sec="60">Descanso 60s</button>
+            <button class="btnPreset rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700 transition" data-sec="90">Descanso 90s</button>
+          </div>
+
+          <div class="flex gap-2 mt-3">
+            <button id="btnStartStop"
+              class="flex-1 rounded-xl px-4 py-2 bg-indigo-600 hover:bg-indigo-500 transition font-medium">
+              Iniciar
+            </button>
+            <button id="btnResetTimer"
+              class="rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700 transition">
+              Zerar
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+  const KEY = "mfit_simple_treinos_v1";
+  const $ = (q) => document.querySelector(q);
+
+  function uid() {
+    return (crypto?.randomUUID?.() || ("id_" + Math.random().toString(16).slice(2)));
+  }
+
+  function getTreinos() {
+    try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+    catch { return []; }
+  }
+  function setTreinos(arr) {
+    localStorage.setItem(KEY, JSON.stringify(arr));
+  }
+
+  function parseLinhas(raw) {
+    const linhas = raw.split("\\n").map(l => l.trim()).filter(Boolean);
+
+    return linhas.map((linha) => {
+      const partes = linha.split("|").map(p => p.trim());
+      const nome = partes[0] || "Exercício";
+      const seriesReps = (partes[1] || "3x10").toLowerCase();
+      const descansoTxt = (partes[2] || "descanso 60").toLowerCase();
+
+      let series = 3, reps = 10;
+      const sr = seriesReps.match(/(\\d+)\\s*x\\s*(\\d+)/);
+      if (sr) { series = Number(sr[1]); reps = Number(sr[2]); }
+
+      let descanso = 60;
+      const m = descansoTxt.match(/(\\d+)/);
+      if (m) descanso = Number(m[1]);
+
+      return {
+        id: uid(),
+        nome,
+        series,
+        reps,
+        descanso,
+        progresso: 0,
+        carga: ""
+      };
+    });
+  }
+
+  let selectedId = null;
+
+  function renderLista() {
+    const treinos = getTreinos();
+    $("#badgeQtd").textContent = treinos.length;
+
+    const host = $("#listaTreinos");
+    host.innerHTML = "";
+
+    if (!treinos.length) {
+      host.innerHTML = `<div class="text-sm text-slate-400">Nenhum treino ainda. Crie o primeiro ali do lado 👈</div>`;
+      return;
+    }
+
+    treinos.forEach(t => {
+      const active = t.id === selectedId;
+
+      const el = document.createElement("div");
+      el.className = `rounded-xl border ${active ? "border-indigo-500/60 bg-indigo-500/10" : "border-slate-800 bg-slate-950/40"} p-3`;
+
+      el.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <button class="text-left flex-1">
+            <div class="font-medium">${escapeHtml(t.nome)}</div>
+            <div class="text-xs text-slate-400 mt-1">${t.exercicios.length} exercícios</div>
+          </button>
+
+          <button class="btnExcluir rounded-lg px-3 py-2 bg-slate-800 hover:bg-slate-700 transition text-sm">
+            Excluir
+          </button>
+        </div>
+      `;
+
+      el.querySelector("button").onclick = () => {
+        selectedId = t.id;
+        renderLista();
+        renderTreino();
+      };
+
+      el.querySelector(".btnExcluir").onclick = (e) => {
+        e.stopPropagation();
+        const ok = confirm(`Excluir "${t.nome}"?`);
+        if (!ok) return;
+
+        const novo = getTreinos().filter(x => x.id !== t.id);
+        setTreinos(novo);
+
+        if (selectedId === t.id) selectedId = null;
+        renderLista();
+        renderTreino();
+      };
+
+      host.appendChild(el);
+    });
+  }
+
+  function renderTreino() {
+    const treinos = getTreinos();
+    const t = treinos.find(x => x.id === selectedId);
+    const host = $("#painelTreino");
+
+    if (!t) {
+      host.className = "text-slate-400 text-sm";
+      host.textContent = "Selecione um treino na lista 🙂";
+      return;
+    }
+
+    host.className = "";
+    host.innerHTML = `
+      <div class="mb-3">
+        <div class="font-semibold text-slate-100">${escapeHtml(t.nome)}</div>
+        <div class="text-xs text-slate-400 mt-1">Marque séries, anote carga e o descanso dispara sozinho.</div>
+      </div>
+
+      <div class="space-y-3">
+        ${t.exercicios.map(ex => {
+          const doneAll = ex.progresso >= ex.series;
+          return `
+            <div class="rounded-xl bg-slate-950/40 border border-slate-800 p-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="font-medium ${doneAll ? "line-through text-slate-400" : ""}">
+                    ${escapeHtml(ex.nome)}
+                  </div>
+                  <div class="text-xs text-slate-400 mt-1">
+                    ${ex.series}x${ex.reps} • descanso ${ex.descanso}s
+                  </div>
+                </div>
+
+                <div class="text-xs text-slate-300 bg-slate-800 rounded-full px-2 py-1 tabular-nums">
+                  ${ex.progresso}/${ex.series}
+                </div>
+              </div>
+
+              <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 items-center">
+                <input data-carga="${ex.id}"
+                  class="rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 outline-none focus:ring-2 focus:ring-slate-600"
+                  placeholder="Carga/obs (ex.: 20kg)"
+                  value="${escapeAttr(ex.carga || "")}" />
+
+                <button data-done="${ex.id}"
+                  class="rounded-xl px-3 py-2 bg-emerald-600 hover:bg-emerald-500 transition font-medium">
+                  Série feita
+                </button>
+
+                <button data-undo="${ex.id}"
+                  class="rounded-xl px-3 py-2 bg-slate-800 hover:bg-slate-700 transition">
+                  Desfazer
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+
+    host.querySelectorAll("input[data-carga]").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        const idEx = e.target.getAttribute("data-carga");
+        updateEx(idEx, { carga: e.target.value });
+      });
+    });
+
+    host.querySelectorAll("button[data-done]").forEach(btn => {
+      btn.onclick = () => {
+        const idEx = btn.getAttribute("data-done");
+        const ex = findEx(idEx);
+        if (!ex) return;
+
+        if (ex.progresso < ex.series) {
+          updateEx(idEx, { progresso: ex.progresso + 1 });
+          startCountdown(ex.descanso, `Descanso (${ex.nome})`);
+        }
+      };
+    });
+
+    host.querySelectorAll("button[data-undo]").forEach(btn => {
+      btn.onclick = () => {
+        const idEx = btn.getAttribute("data-undo");
+        const ex = findEx(idEx);
+        if (!ex) return;
+        updateEx(idEx, { progresso: Math.max(0, ex.progresso - 1) });
+      };
+    });
+  }
+
+  function findEx(exId) {
+    const treinos = getTreinos();
+    const t = treinos.find(x => x.id === selectedId);
+    if (!t) return null;
+    return t.exercicios.find(e => e.id === exId) || null;
+  }
+
+  function updateEx(exId, patch) {
+    const treinos = getTreinos();
+    const idxT = treinos.findIndex(x => x.id === selectedId);
+    if (idxT < 0) return;
+
+    const idxE = treinos[idxT].exercicios.findIndex(e => e.id === exId);
+    if (idxE < 0) return;
+
+    treinos[idxT].exercicios[idxE] = { ...treinos[idxT].exercicios[idxE], ...patch };
+    setTreinos(treinos);
+    renderTreino();
+  }
+
+  $("#btnSalvar").onclick = () => {
+    const nome = $("#inputNome").value.trim();
+    const raw = $("#inputRaw").value;
+
+    if (!nome || !raw.trim()) {
+      alert("Preencha o nome e os exercícios.");
+      return;
+    }
+
+    const novo = {
+      id: uid(),
+      nome,
+      exercicios: parseLinhas(raw)
+    };
+
+    const treinos = getTreinos();
+    treinos.push(novo);
+    setTreinos(treinos);
+
+    $("#inputNome").value = "";
+    $("#inputRaw").value = "";
+
+    selectedId = novo.id;
+    renderLista();
+    renderTreino();
+  };
+
+  $("#btnApagarTudo").onclick = () => {
+    const ok = confirm("Apagar todos os treinos salvos neste navegador?");
+    if (!ok) return;
+    localStorage.removeItem(KEY);
+    selectedId = null;
+    renderLista();
+    renderTreino();
+  };
+
+  $("#btnResetProgresso").onclick = () => {
+    const treinos = getTreinos();
+    const idxT = treinos.findIndex(x => x.id === selectedId);
+    if (idxT < 0) return;
+
+    treinos[idxT].exercicios = treinos[idxT].exercicios.map(ex => ({ ...ex, progresso: 0 }));
+    setTreinos(treinos);
+    renderTreino();
+  };
+
+  // Timer
+  let mode = "stopwatch";
+  let running = false;
+  let tsec = 0;
+  let remaining = 0;
+  let tick = null;
+
+  function fmt(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+  function setTimerDisplay(sec) {
+    $("#timer").textContent = fmt(Math.max(0, sec));
+  }
+  function stopTick() {
+    running = false;
+    if (tick) clearInterval(tick);
+    tick = null;
+    $("#btnStartStop").textContent = "Iniciar";
+  }
+  function startTick() {
+    if (running) return;
+    running = true;
+    $("#btnStartStop").textContent = "Pausar";
+
+    tick = setInterval(() => {
+      if (mode === "stopwatch") {
+        tsec += 1;
+        setTimerDisplay(tsec);
+        $("#timerLabel").textContent = "Cronômetro rodando";
+      } else {
+        remaining -= 1;
+        setTimerDisplay(remaining);
+        if (remaining <= 0) {
+          stopTick();
+          $("#timerLabel").textContent = "Descanso finalizado ✅";
+          try { navigator.vibrate?.(200); } catch {}
+          alert("Descanso finalizado!");
+        }
+      }
+    }, 1000);
+  }
+
+  function startCountdown(seconds, label) {
+    stopTick();
+    mode = "countdown";
+    remaining = Number(seconds) || 60;
+    setTimerDisplay(remaining);
+    $("#timerLabel").textContent = label || `Descanso ${remaining}s`;
+    startTick();
+  }
+
+  $("#btnStartStop").onclick = () => {
+    if (running) stopTick();
+    else startTick();
+  };
+
+  $("#btnResetTimer").onclick = () => {
+    stopTick();
+    mode = "stopwatch";
+    tsec = 0;
+    remaining = 0;
+    setTimerDisplay(0);
+    $("#timerLabel").textContent = "Parado";
+  };
+
+  document.querySelectorAll(".btnPreset").forEach(btn => {
+    btn.onclick = () => startCountdown(btn.getAttribute("data-sec"), `Descanso ${btn.getAttribute("data-sec")}s`);
+  });
+
+  $("#btnToggleTheme").onclick = () => {
+    document.documentElement.classList.toggle("dark");
+  };
+
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replaceAll("\\n", " ");
+  }
+
+  // Registrar Service Worker (PWA)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    });
+  }
+
+  // Init
+  setTimerDisplay(0);
+  renderLista();
+  renderTreino();
+</script>
+</body>
+</html>

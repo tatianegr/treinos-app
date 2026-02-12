@@ -99,9 +99,9 @@ tailwind.config = {
   </button>
 </section>
 
-<!-- CADASTRAR -->
+<!-- CADASTRAR / EDITAR -->
 <section id="telaCadastrar" class="hidden">
-  <h1 class="text-2xl font-semibold mb-6">Novo treino</h1>
+  <h1 id="tituloCadastro" class="text-2xl font-semibold mb-6">Novo treino</h1>
 
   <label class="text-xs text-slate-400">Nome do treino</label>
   <input id="inputNome"
@@ -218,14 +218,22 @@ tailwind.config = {
 
 <!-- VISUALIZAÇÃO -->
 <section id="telaVisualizar" class="hidden">
-  <div class="flex items-center justify-between gap-3 mb-4">
+  <div class="flex items-center justify-between gap-2 mb-4">
     <button id="btnVoltarHome" class="text-sm text-pinkshock">← Voltar</button>
 
-    <!-- APAGAR TREINO -->
-    <button id="btnApagarTreino"
-      class="text-sm font-semibold text-red-300 hover:text-red-200 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10">
-      Apagar
-    </button>
+    <div class="flex gap-2">
+      <!-- EDITAR -->
+      <button id="btnEditarTreino"
+        class="text-sm font-semibold text-slate-200 hover:text-white px-3 py-2 rounded-xl border border-slate-700 bg-slate-800">
+        Editar
+      </button>
+
+      <!-- APAGAR -->
+      <button id="btnApagarTreino"
+        class="text-sm font-semibold text-red-300 hover:text-red-200 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10">
+        Apagar
+      </button>
+    </div>
   </div>
 
   <h1 id="tituloTreino" class="text-2xl font-semibold"></h1>
@@ -418,10 +426,13 @@ tailwind.config = {
    CONFIG / ESTADO
 ========================= */
 const KEY = "treinos_app_final_v2";
-const TRAIN_LOG_KEY = "treinos_app_trainlog_v1"; // guarda dias treinados (YYYY-MM-DD)
+const TRAIN_LOG_KEY = "treinos_app_trainlog_v1";
 
 let treinoAtual = null;
 let treinoAtualIndex = null;
+
+// edição
+let editIndex = null;
 
 let totalInterval = null;
 let descansoInterval = null;
@@ -441,7 +452,7 @@ let cardioRestante = 0;
 let cardioTotalAtual = 0;
 
 // sessão (resumo)
-let sessionSwaps = []; // [{exKey, planejado, executado, motivo}]
+let sessionSwaps = [];
 let sessionStartMs = null;
 let sessionEndMs = null;
 
@@ -450,7 +461,6 @@ let altDraft = []; // [{...exercicioBase, altObrigatorio, altRaw}]
 let altDraftDirty = false;
 
 const CARDIO_OPCOES = ["Esteira","Bike","Escada"];
-
 const MOTIVOS_TROCA = [
   "máquina ocupada",
   "equipamento indisponível",
@@ -518,6 +528,97 @@ function setNav(ativo){
 }
 
 /* =========================
+   MODO EDIÇÃO
+========================= */
+function setModoCadastro(isEdit){
+  const titulo = document.getElementById("tituloCadastro");
+  const btnSalvar = document.getElementById("btnSalvar");
+  if(isEdit){
+    titulo.textContent = "Editar treino";
+    btnSalvar.textContent = "Salvar alterações";
+  } else {
+    titulo.textContent = "Novo treino";
+    btnSalvar.textContent = "Salvar";
+  }
+}
+
+function exerciciosToRawPlanoA(exercicios){
+  const exs = Array.isArray(exercicios) ? exercicios : [];
+  return exs.map(e=>{
+    const nome = e?.nome || "Exercício";
+    const series = Number(e?.series) || 0;
+    const reps = Number(e?.reps) || 0;
+    const descanso = (typeof e?.descanso === "number") ? e.descanso : (Number(e?.descanso) || null);
+
+    const sr = (series>0 && reps>0) ? `${series}x${reps}` : "";
+    const desc = (descanso || descanso===0) ? `descanso ${descanso}` : "";
+    const parts = [nome, sr, desc].filter(Boolean);
+    return parts.join(" | ");
+  }).join("\n");
+}
+
+function altsToRaw(ex){
+  const alts = Array.isArray(ex?.alternativas) ? ex.alternativas : [];
+  if(!alts.length) return "";
+  return alts.map(a=>{
+    const nome = a?.nome || "Alternativa";
+    const series = Number(a?.series) || 0;
+    const reps = Number(a?.reps) || 0;
+    const descanso = (typeof a?.descanso === "number") ? a.descanso : (Number(a?.descanso) || null);
+
+    const sr = (series>0 && reps>0) ? `${series}x${reps}` : "";
+    const desc = (descanso || descanso===0) ? `descanso ${descanso}` : "";
+    const parts = [nome, sr, desc].filter(Boolean);
+    return parts.join(" | ");
+  }).join("\n");
+}
+
+function abrirEdicaoTreino(){
+  if(typeof treinoAtualIndex !== "number") return;
+  let treinos = normalizarTreinos(getTreinos());
+  treinos = removerTreinosExpirados(treinos).filtrados;
+  setTreinos(treinos);
+
+  const t = treinos[treinoAtualIndex];
+  if(!t) return;
+
+  editIndex = treinoAtualIndex;
+  setModoCadastro(true);
+
+  mostrar("telaCadastrar");
+
+  document.getElementById("inputNome").value = t.nome || "";
+  document.getElementById("inputDescricao").value = t.descricao || "";
+  document.getElementById("inputInicio").value = t?.periodo?.inicio || "";
+  document.getElementById("inputFim").value = t?.periodo?.fim || "";
+  document.getElementById("inputRaw").value = exerciciosToRawPlanoA(t.exercicios || []);
+
+  // cardio
+  limparCardioCadastroUI();
+  const items = (t?.cardio?.items || []).filter(i => Number(i?.duracaoSeg) > 0);
+  if(t?.cardio?.enabled && items.length){
+    setCardioCadastro(true);
+    document.getElementById("listaCardioConfig").innerHTML = "";
+    items.forEach(it=>{
+      const min = Math.round((Number(it.duracaoSeg) || 0) / 60);
+      addCardioRow(it.tipo || "Esteira", String(min));
+    });
+  } else {
+    setCardioCadastro(false);
+    limparCardioCadastroUI();
+  }
+
+  // alternativas draft (pra você editar ao abrir "Configurar alternativas")
+  altDraft = (t.exercicios || []).map((e)=>({
+    ...e,
+    altObrigatorio: !!e.altObrigatorio,
+    altRaw: altsToRaw(e)
+  }));
+  altDraftDirty = false;
+  document.getElementById("boxAlternativasCadastro").classList.add("hidden");
+}
+
+/* =========================
    APAGAR TREINO
 ========================= */
 function apagarTreinoAtual(){
@@ -581,7 +682,7 @@ function addTrainingDay(isoDate){
 function startOfWeekMonday(d){
   const x = new Date(d);
   x.setHours(0,0,0,0);
-  const day = x.getDay(); // 0 dom ... 6 sáb
+  const day = x.getDay();
   const diff = (day === 0 ? -6 : (1 - day));
   x.setDate(x.getDate() + diff);
   return x;
@@ -597,7 +698,6 @@ function toISODateFromDate(d){
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
 }
-
 function renderWeeklySummary(){
   const rangeEl = document.getElementById("semanaRange");
   const numEl = document.getElementById("treinosSemanaNum");
@@ -612,7 +712,6 @@ function renderWeeklySummary(){
 
   const log = getTrainLog();
   const weekDaysISO = Array.from({length:7}).map((_,i)=>toISODateFromDate(addDays(start,i)));
-
   const trainedThisWeek = weekDaysISO.filter(iso => log.includes(iso));
   numEl.textContent = String(new Set(trainedThisWeek).size);
 
@@ -733,8 +832,6 @@ function iniciarCronometroTreino(){
     document.getElementById("timerTotal").textContent = formatar(totalSegundos);
   },1000);
 }
-
-/* descanso */
 function atualizarUI_Descanso(){
   const box = document.getElementById("boxDescanso");
   const timer = document.getElementById("timerDescanso");
@@ -942,7 +1039,6 @@ function getTreinos(){
 function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
-
 function normalizarTreinos(treinos){
   treinos.forEach(t=>{
     if(!t.stats || typeof t.stats !== "object"){
@@ -993,7 +1089,6 @@ function normalizarTreinos(treinos){
 
   return treinos;
 }
-
 function removerTreinosExpirados(treinos){
   const hoje0 = inicioDoDiaMs();
   const filtrados = treinos.filter(t=>{
@@ -1033,7 +1128,6 @@ function parseLinhas(raw){
       };
     });
 }
-
 function parseAltLinhas(raw){
   const txt = (raw || "").trim();
   if(!txt) return [];
@@ -1054,7 +1148,6 @@ function parseAltLinhas(raw){
       return { nome, series, reps, descanso };
     });
 }
-
 function validarAltObrigatorias(exercicios){
   const problemas = [];
   exercicios.forEach((e)=>{
@@ -1092,7 +1185,6 @@ function setCardioCadastro(enabled){
     btnSim.classList.remove("bg-pinkshock","text-white");
   }
 }
-
 function cardioRowTemplate(tipo="", minutos=""){
   const opts = CARDIO_OPCOES.map(o => `<option value="${esc(o)}" ${o===tipo?"selected":""}>${esc(o)}</option>`).join("");
   return `
@@ -1118,7 +1210,6 @@ function cardioRowTemplate(tipo="", minutos=""){
     </div>
   </div>`;
 }
-
 function addCardioRow(tipo="Esteira", minutos=""){
   const host = document.getElementById("listaCardioConfig");
   const wrapper = document.createElement("div");
@@ -1128,7 +1219,6 @@ function addCardioRow(tipo="Esteira", minutos=""){
   const btnRem = wrapper.querySelector(".btnRemoverCardio");
   btnRem.addEventListener("click", () => wrapper.remove());
 }
-
 function coletarCardioDoCadastro(){
   if(!cardioCadastroEnabled) return { enabled:false, items:[] };
 
@@ -1152,14 +1242,13 @@ function coletarCardioDoCadastro(){
 
   return { enabled: items.length > 0, items };
 }
-
 function limparCardioCadastroUI(){
   document.getElementById("listaCardioConfig").innerHTML = "";
   addCardioRow("Esteira", "");
 }
 
 /* =========================
-   ALTERNATIVAS (CADASTRO) - textarea por exercício
+   ALTERNATIVAS (CADASTRO)
 ========================= */
 function altCardTemplate(ex, idx){
   const obrig = ex.altObrigatorio ? "checked" : "";
@@ -1195,7 +1284,6 @@ function altCardTemplate(ex, idx){
     </div>
   </div>`;
 }
-
 function abrirConfigAlternativas(){
   const raw = document.getElementById("inputRaw").value.trim();
   if(!raw) return alert("Escreva os exercícios antes de configurar alternativas.");
@@ -1223,7 +1311,6 @@ function abrirConfigAlternativas(){
   renderAltDraft();
   document.getElementById("boxAlternativasCadastro").classList.remove("hidden");
 }
-
 function renderAltDraft(){
   const host = document.getElementById("listaAlternativasCadastro");
   host.innerHTML = "";
@@ -1245,7 +1332,6 @@ function renderAltDraft(){
     });
   });
 }
-
 function limparAlternativasCadastro(){
   altDraft = [];
   altDraftDirty = false;
@@ -1270,7 +1356,6 @@ function getAtivo(ex){
     descanso: (typeof a.descanso === "number") ? a.descanso : ex.descanso
   };
 }
-
 function abrirModalTroca(exIdx){
   const ex = treinoAtual.exercicios[exIdx];
   if(!ex) return;
@@ -1322,11 +1407,9 @@ function abrirModalTroca(exIdx){
 
   document.getElementById("modalTroca").classList.remove("hidden");
 }
-
 function fecharModalTroca(){
   document.getElementById("modalTroca").classList.add("hidden");
 }
-
 function selecionarOpcaoExercicio(exIdx, selectedAlt){
   const ex = treinoAtual.exercicios[exIdx];
   if(!ex) return;
@@ -1423,7 +1506,6 @@ function renderHome(){
     `;
   });
 }
-
 function abrirTreino(i){
   let treinos = normalizarTreinos(getTreinos());
   treinos = removerTreinosExpirados(treinos).filtrados;
@@ -1475,7 +1557,6 @@ function abrirTreino(i){
   mostrar("telaVisualizar");
   renderVisual();
 }
-
 function renderVisual(){
   const host = document.getElementById("listaExerciciosVisual");
   host.innerHTML="";
@@ -1519,6 +1600,9 @@ function renderVisual(){
   });
 }
 
+/* =========================
+   INICIAR / EXECUÇÃO
+========================= */
 function iniciarExecucao(){
   treinoInicioMs = agoraMs();
   sessionStartMs = treinoInicioMs;
@@ -1536,7 +1620,6 @@ function iniciarExecucao(){
   renderExecucao();
   renderCardioExec();
 }
-
 function renderExecucao(){
   const host = document.getElementById("listaExerciciosExec");
   host.innerHTML="";
@@ -1549,7 +1632,6 @@ function renderExecucao(){
 
   exs.forEach((e, i)=>{
     const ativo = getAtivo(e);
-
     const invalido = (!ativo.series || !ativo.reps);
     const seriesNum = invalido ? 0 : ativo.series;
 
@@ -1623,7 +1705,6 @@ function renderExecucao(){
     `;
   });
 }
-
 function renderCardioExec(){
   const box = document.getElementById("boxCardioExec");
   const lista = document.getElementById("listaCardioExec");
@@ -1643,10 +1724,6 @@ function renderCardioExec(){
     </div>
   `).join("");
 }
-
-/* =========================
-   AÇÕES (EXERCÍCIOS)
-========================= */
 function marcarSerieEmIndice(exIdx, serieNumero){
   const e = treinoAtual.exercicios[exIdx];
   const ativo = getAtivo(e);
@@ -1667,7 +1744,6 @@ function marcarSerieEmIndice(exIdx, serieNumero){
   e.feitas = Math.min(ativo.series, serieNumero);
 
   const feitasDepois = e.feitas;
-
   const avancou = feitasDepois > feitasAntes;
   const concluiuExercicio = feitasDepois >= ativo.series;
 
@@ -1717,7 +1793,6 @@ function abrirResumo(inicioMs, fimMs, duracaoSeg){
 
   mostrar("telaResumo");
 }
-
 function finalizar(){
   clearInterval(totalInterval);
   clearInterval(descansoInterval);
@@ -1743,7 +1818,6 @@ function finalizar(){
   }
 
   setTreinos(treinos);
-
   addTrainingDay(hojeISODate());
 
   (treinoAtual.exercicios || []).forEach(e=>{
@@ -1765,7 +1839,7 @@ function mostrar(id){
 }
 
 /* =========================
-   BACKUP (EXPORT / IMPORT)
+   BACKUP
 ========================= */
 function exportarBackup(){
   const dados = localStorage.getItem(KEY);
@@ -1778,7 +1852,6 @@ function exportarBackup(){
   a.click();
   URL.revokeObjectURL(url);
 }
-
 function importarBackup(){
   const input = document.createElement("input");
   input.type = "file";
@@ -1810,7 +1883,6 @@ function importarBackup(){
 
   input.click();
 }
-
 function abrirMenuBackup(){
   const acao = prompt("Backup:\n1 = Exportar\n2 = Importar\n\nDigite 1 ou 2:");
   if(acao === "1") return exportarBackup();
@@ -1821,6 +1893,9 @@ function abrirMenuBackup(){
    EVENTOS
 ========================= */
 document.getElementById("btnNovo").onclick = () => {
+  editIndex = null;
+  setModoCadastro(false);
+
   mostrar("telaCadastrar");
 
   document.getElementById("inputNome").value = "";
@@ -1835,7 +1910,11 @@ document.getElementById("btnNovo").onclick = () => {
   limparAlternativasCadastro();
 };
 
-document.getElementById("btnCancelar").onclick = () => mostrar("telaHome");
+document.getElementById("btnCancelar").onclick = () => {
+  editIndex = null;
+  setModoCadastro(false);
+  mostrar("telaHome");
+};
 document.getElementById("btnVoltarHome").onclick = () => mostrar("telaHome");
 document.getElementById("btnIniciar").onclick = iniciarExecucao;
 document.getElementById("btnFinalizar").onclick = finalizar;
@@ -1857,7 +1936,8 @@ document.getElementById("navBackup").onclick = () => {
   abrirMenuBackup();
 };
 
-/* apagar treino */
+/* editar / apagar */
+document.getElementById("btnEditarTreino").onclick = abrirEdicaoTreino;
 document.getElementById("btnApagarTreino").onclick = apagarTreinoAtual;
 
 /* modal troca */
@@ -1866,17 +1946,17 @@ document.getElementById("modalTroca").addEventListener("click", (ev)=>{
   if(ev.target.id === "modalTroca") fecharModalTroca();
 });
 
-/* cardio cadastro events */
+/* cardio cadastro */
 document.getElementById("btnCardioSim").onclick = () => setCardioCadastro(true);
 document.getElementById("btnCardioNao").onclick = () => setCardioCadastro(false);
 document.getElementById("btnAddCardio").onclick = () => addCardioRow("Esteira","");
 
-/* cardio execução events */
+/* cardio execução */
 document.getElementById("btnAbrirCardioTimer").onclick = () => abrirCardioTimer();
 document.getElementById("btnCardioPlayPause").onclick = toggleCardioPlayPause;
 document.getElementById("btnPularCardio").onclick = pularCardioAtual;
 
-/* alternativas cadastro events */
+/* alternativas */
 document.getElementById("btnConfigAlternativas").onclick = abrirConfigAlternativas;
 document.getElementById("btnFecharAlternativas").onclick = () => {
   document.getElementById("boxAlternativasCadastro").classList.add("hidden");
@@ -1887,12 +1967,11 @@ document.getElementById("btnLimparAlternativas").onclick = () => {
     alert("Alternativas limpas.");
   }
 };
-
 document.getElementById("inputRaw").addEventListener("input", ()=>{
   altDraftDirty = true;
 });
 
-/* salvar */
+/* salvar (novo ou editar) */
 document.getElementById("btnSalvar").onclick = () => {
   const nome = document.getElementById("inputNome").value.trim();
   const descricao = document.getElementById("inputDescricao").value.trim();
@@ -1940,6 +2019,35 @@ document.getElementById("btnSalvar").onclick = () => {
   const cardio = coletarCardioDoCadastro();
 
   let treinos = normalizarTreinos(getTreinos());
+  treinos = removerTreinosExpirados(treinos).filtrados;
+
+  // EDITAR
+  if(typeof editIndex === "number" && treinos[editIndex]){
+    const old = treinos[editIndex];
+
+    treinos[editIndex] = {
+      ...old,
+      nome,
+      descricao,
+      periodo: { inicio, fim },
+      exercicios,
+      cardio
+    };
+
+    setTreinos(treinos);
+
+    // limpa modo edição
+    editIndex = null;
+    setModoCadastro(false);
+    limparAlternativasCadastro();
+
+    alert("Treino atualizado!");
+    renderHome();
+    mostrar("telaHome");
+    return;
+  }
+
+  // NOVO
   treinos.push({
     nome,
     descricao,
@@ -1964,6 +2072,7 @@ document.getElementById("btnSalvar").onclick = () => {
 renderHome();
 setNav("home");
 atualizarUI_Descanso();
+setModoCadastro(false);
 
 setCardioCadastro(false);
 limparCardioCadastroUI();

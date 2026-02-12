@@ -25,60 +25,66 @@ tailwind.config = {
 
 <div class="max-w-xl mx-auto p-4">
 
-<!-- LOGIN -->
-<section id="telaLogin" class="hidden">
-  <h1 class="text-2xl font-semibold mb-2">Entrar</h1>
-  <div id="loginSub" class="text-sm text-slate-400 mb-6">
-    Digite seu PIN para acessar seus treinos.
-  </div>
-
-  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
-    <label class="text-xs text-slate-400">PIN</label>
-    <input id="loginPin" type="password" inputmode="numeric"
-      class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
-      placeholder="Ex: 1234" />
-
-    <div id="boxConfirmPin" class="hidden">
-      <label class="text-xs text-slate-400">Confirmar PIN</label>
-      <input id="loginPin2" type="password" inputmode="numeric"
-        class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
-        placeholder="Repita o PIN" />
-    </div>
-
-    <label class="inline-flex items-center gap-2 text-sm text-slate-200 select-none">
-      <input id="loginRemember" type="checkbox" class="w-4 h-4 accent-pinkshock" checked>
-      lembrar neste dispositivo
-    </label>
-
-    <button id="btnLogin"
-      class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock font-semibold">
-      Entrar
-    </button>
-
-    <div class="mt-4 text-xs text-slate-400 leading-relaxed">
-      Dica: para levar seus treinos do computador pro celular, use o menu <span class="text-slate-200">Backup</span> e escolha
-      <span class="text-slate-200">Compartilhar</span> (ou Exportar) no PC e <span class="text-slate-200">Importar</span> no celular.
-    </div>
-  </div>
-
-  <div class="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
-    <div class="text-xs text-slate-400 leading-relaxed">
-      Se você esquecer o PIN, dá pra apagar os dados locais deste dispositivo e recomeçar.
-      Isso apaga seus treinos daqui (então faça backup antes, se possível).
-    </div>
-    <button id="btnResetDevice"
-      class="mt-3 w-full rounded-xl px-4 py-2 bg-slate-900 border border-slate-800 text-sm font-semibold text-slate-200">
-      Apagar dados deste dispositivo
-    </button>
-  </div>
-</section>
-
-<!-- APP SHELL -->
-<div id="appShell" class="hidden">
-
 <!-- HOME -->
 <section id="telaHome">
-  <h1 class="text-2xl font-semibold mb-6">Meus treinos</h1>
+  <h1 class="text-2xl font-semibold mb-2">Olá, Tati!</h1>
+
+  <!-- RESUMO SEMANAL -->
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4">
+    <div class="flex items-baseline justify-between gap-3">
+      <div class="text-sm text-slate-400">frequência da semana</div>
+      <div id="semanaRange" class="text-xs text-slate-500">—</div>
+    </div>
+
+    <div class="mt-2 flex items-end justify-between gap-3">
+      <div class="text-3xl font-extrabold text-pinkshock">
+        <span id="treinosSemanaNum">0</span>
+        <span class="text-base font-semibold text-slate-200">dia(s)</span>
+      </div>
+      <div class="text-sm text-slate-400">você treinou essa semana</div>
+    </div>
+
+    <!-- BOLINHAS DA SEMANA -->
+    <div class="mt-4">
+      <div class="grid grid-cols-7 gap-2 text-center text-[11px] text-slate-400 mb-2">
+        <div>seg</div><div>ter</div><div>qua</div><div>qui</div><div>sex</div><div>sáb</div><div>dom</div>
+      </div>
+      <div id="bolinhasSemana" class="grid grid-cols-7 gap-2"></div>
+
+      <div class="mt-3 flex items-center gap-3 text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> treinou
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></span> não treinou
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROGRESSO DO TREINO ATUAL (PERÍODO) -->
+  <div id="boxProgressoTreino" class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4 hidden">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="text-sm text-slate-400">progresso do treino atual</div>
+        <div id="progressoTreinoNome" class="text-base font-semibold text-slate-200 truncate mt-1">—</div>
+        <div id="progressoTreinoPeriodo" class="text-xs text-slate-500 mt-1">—</div>
+      </div>
+      <div class="text-right">
+        <div id="progressoTreinoPct" class="text-lg font-extrabold text-slate-100">0%</div>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+        <div id="progressoTreinoBarra" class="h-full bg-pinkshock w-0"></div>
+      </div>
+    </div>
+
+    <div id="progressoTreinoHint" class="mt-2 text-xs text-slate-500">—</div>
+  </div>
+
+  <!-- TREINOS -->
   <div id="listaTreinos"></div>
 
   <button id="btnNovo"
@@ -355,7 +361,7 @@ tailwind.config = {
 
 </div>
 
-<nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
+<nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
   <div class="max-w-xl mx-auto flex">
     <button id="navHome"
       class="flex-1 py-3 text-sm font-medium text-pinkshock">
@@ -397,7 +403,7 @@ tailwind.config = {
    CONFIG / ESTADO
 ========================= */
 const KEY = "treinos_app_final_v2";
-const AUTH_KEY = "treinos_app_auth_v1";
+const TRAIN_LOG_KEY = "treinos_app_trainlog_v1"; // guarda dias treinados (YYYY-MM-DD)
 
 let treinoAtual = null;
 let treinoAtualIndex = null;
@@ -499,200 +505,151 @@ function setNav(ativo){
 }
 
 /* =========================
-   AUTH (PIN LOCAL)
+   LOG SEMANAL (DIAS TREINADOS)
 ========================= */
-let appIniciado = false;
-
-function getAuth(){
+function hojeISODate(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function getTrainLog(){
   try{
-    return JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
-  } catch(e){
-    return null;
+    const arr = JSON.parse(localStorage.getItem(TRAIN_LOG_KEY) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
   }
 }
-function setAuth(obj){
-  localStorage.setItem(AUTH_KEY, JSON.stringify(obj));
+function setTrainLog(arr){
+  localStorage.setItem(TRAIN_LOG_KEY, JSON.stringify(arr));
 }
-function isUnlocked(){
-  const a = getAuth();
-  return !!a?.unlocked;
-}
-function isRememberEnabled(){
-  const a = getAuth();
-  return (typeof a?.remember === "boolean") ? a.remember : true;
-}
-function hasPin(){
-  const a = getAuth();
-  return !!a?.pinHash;
-}
-
-function showLoginUI(){
-  document.getElementById("appShell").classList.add("hidden");
-  document.getElementById("bottomNav").classList.add("hidden");
-
-  document.getElementById("telaLogin").classList.remove("hidden");
-
-  const sub = document.getElementById("loginSub");
-  const boxConfirm = document.getElementById("boxConfirmPin");
-  const btn = document.getElementById("btnLogin");
-
-  if(!hasPin()){
-    sub.textContent = "Primeiro acesso: crie um PIN simples para proteger seus treinos neste dispositivo.";
-    boxConfirm.classList.remove("hidden");
-    btn.textContent = "Salvar PIN e entrar";
-  } else {
-    sub.textContent = "Digite seu PIN para acessar seus treinos.";
-    boxConfirm.classList.add("hidden");
-    btn.textContent = "Entrar";
-  }
-
-  document.getElementById("loginPin").value = "";
-  const p2 = document.getElementById("loginPin2");
-  if(p2) p2.value = "";
-}
-
-function showAppUI(){
-  document.getElementById("telaLogin").classList.add("hidden");
-  document.getElementById("appShell").classList.remove("hidden");
-  document.getElementById("bottomNav").classList.remove("hidden");
-}
-
-function isValidPin(pin){
-  const p = String(pin || "").trim();
-  if(p.length < 4 || p.length > 12) return false;
-  return /^\d+$/.test(p);
-}
-function bytesToHex(bytes){
-  return Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2,"0")).join("");
-}
-async function sha256Hex(text){
-  const enc = new TextEncoder().encode(String(text));
-  const hash = await crypto.subtle.digest("SHA-256", enc);
-  return bytesToHex(hash);
-}
-
-async function unlockWithPin(pin, remember){
-  const a = getAuth() || {};
-  const pinHash = await sha256Hex(pin);
-
-  if(a.pinHash && a.pinHash !== pinHash){
-    alert("PIN incorreto.");
-    return false;
-  }
-
-  a.unlocked = true;
-  a.remember = !!remember;
-  setAuth(a);
-  return true;
-}
-
-function applyRememberPolicyOnLoad(){
-  const a = getAuth();
-  if(!a) return;
-
-  if(a.unlocked && !a.remember){
-    a.unlocked = false;
-    setAuth(a);
+function addTrainingDay(isoDate){
+  const d = (isoDate || "").trim();
+  if(!d) return;
+  const log = getTrainLog();
+  if(!log.includes(d)){
+    log.push(d);
+    log.sort(); // iso yyyy-mm-dd ordena ok
+    setTrainLog(log);
   }
 }
 
-function lockApp(){
-  const a = getAuth() || {};
-  a.unlocked = false;
-  setAuth(a);
-
-  mostrar("telaHome");
-  showLoginUI();
+// semana: segunda(0) .. domingo(6)
+function startOfWeekMonday(d){
+  const x = new Date(d);
+  x.setHours(0,0,0,0);
+  const day = x.getDay(); // 0 dom ... 6 sáb
+  const diff = (day === 0 ? -6 : (1 - day)); // volta até segunda
+  x.setDate(x.getDate() + diff);
+  return x;
 }
-
-async function setNewPinFlow(){
-  const atual = prompt("Digite seu PIN atual:");
-  if(atual === null) return;
-
-  const a = getAuth();
-  if(!a?.pinHash){
-    alert("Não há PIN configurado.");
-    return;
-  }
-
-  const atualHash = await sha256Hex(String(atual).trim());
-  if(atualHash !== a.pinHash){
-    alert("PIN atual incorreto.");
-    return;
-  }
-
-  const novo = prompt("Novo PIN (4 a 12 números):");
-  if(novo === null) return;
-  if(!isValidPin(novo)){
-    alert("PIN inválido. Use apenas números (4 a 12).");
-    return;
-  }
-
-  const novo2 = prompt("Confirme o novo PIN:");
-  if(novo2 === null) return;
-  if(String(novo).trim() !== String(novo2).trim()){
-    alert("Os PINs não coincidem.");
-    return;
-  }
-
-  a.pinHash = await sha256Hex(String(novo).trim());
-  setAuth(a);
-  alert("PIN atualizado.");
+function addDays(d, n){
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
 }
-
-function resetThisDevice(){
-  if(!confirm("Isso vai apagar os treinos e o PIN deste dispositivo. Continuar?")) return;
-  localStorage.removeItem(KEY);
-  localStorage.removeItem(AUTH_KEY);
-  alert("Dados apagados deste dispositivo.");
-  location.reload();
+function toISODateFromDate(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
 }
+function renderWeeklySummary(){
+  const rangeEl = document.getElementById("semanaRange");
+  const numEl = document.getElementById("treinosSemanaNum");
+  const dotsHost = document.getElementById("bolinhasSemana");
 
-async function handleLoginClick(){
-  const pin = document.getElementById("loginPin").value.trim();
-  const remember = document.getElementById("loginRemember").checked;
+  if(!rangeEl || !numEl || !dotsHost) return;
 
-  if(!isValidPin(pin)){
-    alert("Digite um PIN válido (apenas números, 4 a 12).");
-    return;
-  }
+  const now = new Date();
+  const start = startOfWeekMonday(now);
+  const end = addDays(start, 6);
 
-  if(!hasPin()){
-    const pin2 = (document.getElementById("loginPin2").value || "").trim();
-    if(pin2 !== pin){
-      alert("Os PINs não coincidem.");
-      return;
+  rangeEl.textContent = `${pad2(start.getDate())}/${pad2(start.getMonth()+1)} → ${pad2(end.getDate())}/${pad2(end.getMonth()+1)}`;
+
+  const log = getTrainLog();
+  const weekDaysISO = Array.from({length:7}).map((_,i)=>toISODateFromDate(addDays(start,i)));
+
+  const trainedThisWeek = weekDaysISO.filter(iso => log.includes(iso));
+  numEl.textContent = String(new Set(trainedThisWeek).size);
+
+  const todayISO = hojeISODate();
+
+  dotsHost.innerHTML = weekDaysISO.map((iso)=>{
+    const treinou = log.includes(iso);
+    const futuro = iso > todayISO;
+
+    const base = "w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold border";
+    let cls = "bg-slate-700 border-slate-600 text-slate-200";
+    if(futuro){
+      cls = "bg-slate-900 border-slate-800 text-slate-500";
+    } else if(treinou){
+      cls = "bg-green-500 border-green-500 text-white";
     }
 
-    const a = getAuth() || {};
-    a.pinHash = await sha256Hex(pin);
-    a.unlocked = true;
-    a.remember = !!remember;
-    setAuth(a);
+    const dia = iso.split("-")[2];
+    return `<div class="${base} ${cls}" title="${esc(iso)}">${esc(dia)}</div>`;
+  }).join("");
+}
 
-    showAppUI();
-    initAppOnce();
+/* =========================
+   PROGRESSO DO TREINO ATUAL (PERÍODO)
+========================= */
+function renderProgressoTreinoAtual(treinos){
+  const box = document.getElementById("boxProgressoTreino");
+  const nomeEl = document.getElementById("progressoTreinoNome");
+  const periodoEl = document.getElementById("progressoTreinoPeriodo");
+  const pctEl = document.getElementById("progressoTreinoPct");
+  const barra = document.getElementById("progressoTreinoBarra");
+  const hint = document.getElementById("progressoTreinoHint");
+
+  if(!box || !nomeEl || !periodoEl || !pctEl || !barra || !hint) return;
+
+  const hoje0 = inicioDoDiaMs();
+  const candidatos = (treinos || [])
+    .filter(t => t?.periodo?.inicio && t?.periodo?.fim)
+    .map(t => {
+      const iniMs = new Date(t.periodo.inicio + "T00:00:00").getTime();
+      const fimMs = fimDoDiaMsFromISO(t.periodo.fim);
+      return { t, iniMs, fimMs };
+    })
+    .filter(x => Number.isFinite(x.iniMs) && Number.isFinite(x.fimMs) && x.iniMs <= x.fimMs);
+
+  // regra: "treino atual" = aquele cujo período inclui hoje
+  const ativos = candidatos.filter(x => hoje0 >= x.iniMs && hoje0 <= x.fimMs);
+
+  if(!ativos.length){
+    box.classList.add("hidden");
+    barra.style.width = "0%";
     return;
   }
 
-  const ok = await unlockWithPin(pin, remember);
-  if(!ok) return;
+  // se tiver mais de um, pega o que termina primeiro
+  ativos.sort((a,b)=>a.fimMs - b.fimMs);
+  const cur = ativos[0];
 
-  showAppUI();
-  initAppOnce();
-}
+  const total = Math.max(1, cur.fimMs - cur.iniMs);
+  const pass = Math.max(0, Math.min(total, hoje0 - cur.iniMs));
+  const pct = Math.max(0, Math.min(100, Math.round((pass / total) * 100)));
 
-function initAppOnce(){
-  if(appIniciado) return;
-  appIniciado = true;
+  box.classList.remove("hidden");
+  nomeEl.textContent = cur.t.nome || "Treino";
+  const iniBR = formatarDataISOparaBR(cur.t.periodo.inicio);
+  const fimBR = formatarDataISOparaBR(cur.t.periodo.fim);
+  periodoEl.textContent = `período: ${iniBR} → ${fimBR}`;
 
-  renderHome();
-  setNav("home");
-  atualizarUI_Descanso();
-  setCardioCadastro(false);
-  limparCardioCadastroUI();
+  pctEl.textContent = `${pct}%`;
+  barra.style.width = pct + "%";
 
-  mostrar("telaHome");
+  const diasTotal = Math.max(1, Math.ceil((cur.fimMs - cur.iniMs) / (24*60*60*1000)));
+  const diasPassados = Math.max(0, Math.floor((hoje0 - cur.iniMs) / (24*60*60*1000)));
+  const diasRestantes = Math.max(0, diasTotal - diasPassados);
+
+  hint.textContent = diasRestantes <= 1
+    ? "último dia do período (aperta o passo 😅)"
+    : `faltam ~${diasRestantes} dia(s) para acabar o período`;
 }
 
 /* =========================
@@ -1264,7 +1221,6 @@ function renderAltDraft(){
     const list = wrapper.querySelector(".altList");
     const empty = wrapper.querySelector(".altEmpty");
 
-    // render lista
     function renderAltList(){
       const alts = altDraft[idx].alternativas || [];
       list.innerHTML = "";
@@ -1321,7 +1277,6 @@ function renderAltDraft(){
 
     chk.addEventListener("change", ()=>{
       altDraft[idx].altObrigatorio = !!chk.checked;
-      // re-render tudo (simples e seguro)
       renderAltDraft();
     });
 
@@ -1357,7 +1312,6 @@ function validarAltObrigatorias(exercicios){
    ALTERNATIVAS (EXECUÇÃO)
 ========================= */
 function getAtivo(ex){
-  // 0: plano A
   if(!ex || typeof ex.selectedAlt !== "number" || ex.selectedAlt <= 0) return ex;
 
   const altIdx = ex.selectedAlt - 1;
@@ -1393,7 +1347,6 @@ function abrirModalTroca(exIdx){
 
   const opcoes = [];
 
-  // plano A
   opcoes.push({
     label: `Plano A: ${ex.nome}`,
     desc: `${ex.series}x${ex.reps} • ${ex.descanso ? `descanso ${ex.descanso}s` : `sem descanso`}`,
@@ -1443,12 +1396,10 @@ function selecionarOpcaoExercicio(exIdx, selectedAlt){
 
   ex.selectedAlt = selectedAlt;
 
-  // registrar troca na sessão (se escolheu alternativa)
   const planejado = ex.nome;
   const ativo = getAtivo(ex);
   const executado = ativo.nome;
 
-  // remove item antigo dessa mesma chave
   const exKey = `${exIdx}__${planejado}`;
   sessionSwaps = sessionSwaps.filter(s => s.exKey !== exKey);
 
@@ -1469,7 +1420,6 @@ function selecionarOpcaoExercicio(exIdx, selectedAlt){
     sessionSwaps.push({ exKey, planejado, executado, motivo });
   }
 
-  // como a troca pode alterar séries/descanso, garante que descanso não fique “vazando”
   pularDescanso();
   renderExecucao();
 
@@ -1483,6 +1433,10 @@ function renderHome(){
   let treinos = normalizarTreinos(getTreinos());
   treinos = removerTreinosExpirados(treinos).filtrados;
   setTreinos(treinos);
+
+  // novidades da home
+  renderWeeklySummary();
+  renderProgressoTreinoAtual(treinos);
 
   const host = document.getElementById("listaTreinos");
   host.innerHTML="";
@@ -1505,7 +1459,6 @@ function renderHome(){
       ? `• cardio: <span class="text-slate-200">${(t.cardio.items || []).filter(x=>x.duracaoSeg>0).length} item(ns)</span>`
       : `• cardio: —`;
 
-    // conta quantos exercícios têm plano b obrigatório
     const obrigCount = (t.exercicios || []).filter(e => e.altObrigatorio).length;
     const obrigTxt = obrigCount ? `• plano b: <span class="text-slate-200">${obrigCount}</span>` : `• plano b: —`;
 
@@ -1565,7 +1518,6 @@ function abrirTreino(i){
   const sub = [ desc ? desc : null, periodoTxt ? periodoTxt : null ].filter(Boolean).join(" • ");
   document.getElementById("subtituloTreino").textContent = sub || "";
 
-  // cardio resumo
   const box = document.getElementById("boxCardioResumo");
   const txt = document.getElementById("cardioResumoTexto");
   if(temCardioValido(treinoAtual)){
@@ -1635,7 +1587,6 @@ function iniciarExecucao(){
   pularDescanso();
   resetCardioState();
 
-  // reseta seleção de alternativa por sessão (sem apagar cadastro)
   (treinoAtual.exercicios || []).forEach(e=>{
     e.selectedAlt = 0;
   });
@@ -1766,19 +1717,16 @@ function marcarSerieEmIndice(exIdx, serieNumero){
 
   const feitasAntes = e.feitas;
 
-  // desmarcar (voltar)
   if(serieNumero <= e.feitas){
     e.feitas = Math.max(0, serieNumero - 1);
     renderExecucao();
     return;
   }
 
-  // marcar pra frente
   e.feitas = Math.min(ativo.series, serieNumero);
 
   const feitasDepois = e.feitas;
 
-  // descanso só quando avança e ainda NÃO concluiu o exercício
   const avancou = feitasDepois > feitasAntes;
   const concluiuExercicio = feitasDepois >= ativo.series;
 
@@ -1808,7 +1756,6 @@ function abrirResumo(inicioMs, fimMs, duracaoSeg){
     document.getElementById("resumoData").textContent = `Início: ${ini.data} • Fim: ${fim.data}`;
   }
 
-  // trocas
   const box = document.getElementById("boxResumoTrocas");
   const list = document.getElementById("resumoTrocasLista");
   if(sessionSwaps.length){
@@ -1856,7 +1803,9 @@ function finalizar(){
 
   setTreinos(treinos);
 
-  // reset progresso e seleção (só na sessão)
+  // registra o dia no log semanal (conta 1 vez por dia)
+  addTrainingDay(hojeISODate());
+
   (treinoAtual.exercicios || []).forEach(e=>{
     e.feitas = 0;
     e.selectedAlt = 0;
@@ -1876,7 +1825,7 @@ function mostrar(id){
 }
 
 /* =========================
-   BACKUP (EXPORT / IMPORT / SHARE)
+   BACKUP (EXPORT / IMPORT)
 ========================= */
 function exportarBackup(){
   const dados = localStorage.getItem(KEY);
@@ -1888,30 +1837,6 @@ function exportarBackup(){
   a.download = "backup_treinos.json";
   a.click();
   URL.revokeObjectURL(url);
-}
-
-async function compartilharBackup(){
-  const dados = localStorage.getItem(KEY);
-  if(!dados) return alert("Nada para exportar.");
-
-  const blob = new Blob([dados], {type:"application/json"});
-  const file = new File([blob], "backup_treinos.json", {type:"application/json"});
-
-  if(navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share){
-    try{
-      await navigator.share({
-        files: [file],
-        title: "Backup Treinos",
-        text: "Backup do app de treinos"
-      });
-      return;
-    } catch(e){
-      // usuário cancelou ou falhou, cai no fallback
-    }
-  }
-
-  exportarBackup();
-  alert("Seu navegador não suportou compartilhamento direto. Fiz o download do arquivo para você enviar (WhatsApp/Drive).");
 }
 
 function importarBackup(){
@@ -1946,30 +1871,15 @@ function importarBackup(){
   input.click();
 }
 
-async function abrirMenuBackup(){
-  const acao = prompt(
-    "Backup:\n" +
-    "1 = Exportar\n" +
-    "2 = Importar\n" +
-    "3 = Compartilhar\n" +
-    "4 = Bloquear\n" +
-    "5 = Trocar PIN\n\n" +
-    "Digite 1-5:"
-  );
-
+function abrirMenuBackup(){
+  const acao = prompt("Backup:\n1 = Exportar\n2 = Importar\n\nDigite 1 ou 2:");
   if(acao === "1") return exportarBackup();
   if(acao === "2") return importarBackup();
-  if(acao === "3") return compartilharBackup();
-  if(acao === "4") return lockApp();
-  if(acao === "5") return setNewPinFlow();
 }
 
 /* =========================
    EVENTOS
 ========================= */
-document.getElementById("btnLogin").onclick = handleLoginClick;
-document.getElementById("btnResetDevice").onclick = resetThisDevice;
-
 document.getElementById("btnNovo").onclick = () => {
   mostrar("telaCadastrar");
 
@@ -1979,11 +1889,9 @@ document.getElementById("btnNovo").onclick = () => {
   document.getElementById("inputFim").value = "";
   document.getElementById("inputRaw").value = "";
 
-  // cardio
   setCardioCadastro(false);
   limparCardioCadastroUI();
 
-  // alternativas
   limparAlternativasCadastro();
 };
 
@@ -2012,7 +1920,6 @@ document.getElementById("navBackup").onclick = () => {
 /* modal troca */
 document.getElementById("btnFecharModalTroca").onclick = fecharModalTroca;
 document.getElementById("modalTroca").addEventListener("click", (ev)=>{
-  // fecha se clicar no fundo escuro
   if(ev.target.id === "modalTroca") fecharModalTroca();
 });
 
@@ -2052,21 +1959,18 @@ document.getElementById("btnSalvar").onclick = () => {
 
   if(!nome || !raw) return alert("Preencha o nome e os exercícios.");
 
-  // valida período
   if(inicio && fim){
     const iniMs = new Date(inicio + "T00:00:00").getTime();
     const fimMs = fimDoDiaMsFromISO(fim);
     if(iniMs > fimMs) return alert("A data de início não pode ser depois da data final.");
   }
 
-  // exercícios base
   let exercicios = parseLinhas(raw);
   const invalidos = exercicios.filter(e => !e.series || !e.reps);
   if(invalidos.length){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
   }
 
-  // aplica alternativas do draft (se existir)
   if(altDraft.length && !altDraftDirty){
     exercicios = exercicios.map((e, idx)=>{
       const d = altDraft[idx];
@@ -2078,13 +1982,11 @@ document.getElementById("btnSalvar").onclick = () => {
     });
   }
 
-  // valida obrigatórias
   const faltando = validarAltObrigatorias(exercicios);
   if(faltando.length){
     return alert("Plano B obrigatório sem alternativas em:\n\n- " + faltando.join("\n- ") + "\n\nAbra “Configurar alternativas” e adicione pelo menos 1.");
   }
 
-  // cardio
   const cardio = coletarCardioDoCadastro();
 
   let treinos = normalizarTreinos(getTreinos());
@@ -2100,7 +2002,6 @@ document.getElementById("btnSalvar").onclick = () => {
   treinos = removerTreinosExpirados(treinos).filtrados;
   setTreinos(treinos);
 
-  // limpa draft
   limparAlternativasCadastro();
 
   renderHome();
@@ -2110,17 +2011,12 @@ document.getElementById("btnSalvar").onclick = () => {
 /* =========================
    INIT
 ========================= */
-applyRememberPolicyOnLoad();
+renderHome();
+setNav("home");
+atualizarUI_Descanso();
 
-if(!hasPin()){
-  showLoginUI();
-} else if(isUnlocked()){
-  showAppUI();
-  initAppOnce();
-} else {
-  showLoginUI();
-}
-
+setCardioCadastro(false);
+limparCardioCadastroUI();
 </script>
 
 </body>

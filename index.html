@@ -25,12 +25,23 @@ tailwind.config = {
 </script>
 </head>
 
-<body class="bg-slate-950 text-slate-100 pb-20">
+<body class="bg-slate-950 text-slate-100 pb-24">
 
 <div class="max-w-xl mx-auto p-4">
 
-<!-- TELA CADASTRAR -->
-<section id="telaCadastrar">
+<!-- HOME -->
+<section id="telaHome">
+<h1 class="text-2xl font-semibold mb-6">Meus treinos</h1>
+<div id="listaTreinos"></div>
+
+<button id="btnNovo"
+  class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock">
++ Novo treino
+</button>
+</section>
+
+<!-- CADASTRAR -->
+<section id="telaCadastrar" class="hidden">
 <h1 class="text-2xl font-semibold mb-6">Novo treino</h1>
 
 <input id="inputNome"
@@ -39,63 +50,73 @@ tailwind.config = {
 
 <textarea id="inputRaw"
   class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[120px]"
-  placeholder="Agachamento | 4x10 | descanso 90"></textarea>
+  placeholder="Agachamento | 4x10 | descanso 60"></textarea>
 
 <div class="flex gap-2 mt-3">
 <button id="btnSalvar"
-  class="flex-1 rounded-xl px-4 py-2 bg-pinkshock hover:opacity-90 font-medium">
+  class="flex-1 rounded-xl px-4 py-2 bg-pinkshock">
 Salvar
 </button>
-<button id="btnLimpar"
-  class="rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
-Limpar
+<button id="btnCancelar"
+  class="rounded-xl px-4 py-2 bg-slate-800">
+Cancelar
 </button>
 </div>
-
-<div class="flex gap-2 mt-3">
-<button id="btnExportar"
-  class="flex-1 rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
-Exportar
-</button>
-<button id="btnImportar"
-  class="flex-1 rounded-xl px-4 py-2 bg-slate-800 hover:bg-slate-700">
-Importar
-</button>
-</div>
-
-<input type="file" id="inputImport" accept="application/json" class="hidden">
 </section>
 
+<!-- VISUALIZAÇÃO -->
+<section id="telaVisualizar" class="hidden">
+<button id="btnVoltarHome" class="text-sm text-pinkshock mb-4">← Voltar</button>
+<h1 id="tituloTreino" class="text-2xl font-semibold mb-4"></h1>
 
-<!-- TELA TREINOS -->
-<section id="telaTreinos" class="hidden">
-<h1 class="text-2xl font-semibold mb-6">Meus treinos</h1>
-<div id="listaTreinos"></div>
+<div id="listaExerciciosVisual"></div>
+
+<button id="btnIniciar"
+  class="mt-4 w-full rounded-xl px-4 py-2 bg-green-600">
+INICIAR
+</button>
+</section>
+
+<!-- EXECUÇÃO -->
+<section id="telaExecucao" class="hidden">
+
+<div class="sticky top-0 bg-slate-950 py-4 mb-4">
+<h2 class="text-lg font-semibold mb-2">Tempo</h2>
+<div id="timer" class="text-3xl font-bold text-pinkshock">00:00</div>
+</div>
+
+<div id="listaExerciciosExec"></div>
+
+<button id="btnFinalizar"
+  class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock">
+Finalizar treino
+</button>
+
 </section>
 
 </div>
 
-
-<!-- MENU INFERIOR -->
+<!-- MENU -->
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
 <div class="max-w-xl mx-auto flex">
-
-<button id="navCadastrar"
-  class="flex-1 py-3 text-center text-sm font-medium text-pinkshock">
-➕ Cadastrar
+<button id="navHome"
+  class="flex-1 py-3 text-sm font-medium text-pinkshock">
+🏠 Home
 </button>
-
-<button id="navTreinos"
-  class="flex-1 py-3 text-center text-sm font-medium text-slate-400">
-📋 Treinos
+<button id="navBackup"
+  class="flex-1 py-3 text-sm font-medium text-slate-400">
+💾 Backup
 </button>
-
 </div>
 </nav>
 
+<input type="file" id="inputImport" accept="application/json" class="hidden">
 
 <script>
-const KEY = "treinos_app_v3";
+const KEY = "treinos_app_final";
+let treinoAtual = null;
+let timerInterval = null;
+let tempoRestante = 0;
 
 function getTreinos(){
   return JSON.parse(localStorage.getItem(KEY) || "[]");
@@ -105,133 +126,158 @@ function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
-function parseLinhas(raw){
-  return raw.split("\\n").filter(Boolean).map(l => {
-    const partes = l.split("|").map(p => p.trim());
-    return {
-      nome: partes[0] || "Exercício"
+function formatarTempo(seg){
+  const m = String(Math.floor(seg/60)).padStart(2,"0");
+  const s = String(seg%60).padStart(2,"0");
+  return `${m}:${s}`;
+}
+
+function iniciarTimer(seg){
+  clearInterval(timerInterval);
+  tempoRestante = seg;
+  document.getElementById("timer").textContent = formatarTempo(seg);
+
+  timerInterval = setInterval(()=>{
+    tempoRestante--;
+    document.getElementById("timer").textContent = formatarTempo(tempoRestante);
+    if(tempoRestante<=0){
+      clearInterval(timerInterval);
+      navigator.vibrate?.(200);
     }
+  },1000);
+}
+
+function parseLinhas(raw){
+  return raw.split("\n").filter(Boolean).map(l=>{
+    const partes = l.split("|").map(p=>p.trim());
+    const match = partes[1]?.match(/(\d+)x(\d+)/);
+    return {
+      nome: partes[0],
+      series: match? Number(match[1]) : 3,
+      descanso: partes[2]?.match(/(\d+)/)? Number(partes[2].match(/(\d+)/)[1]) : 60,
+      feitas: 0
+    };
   });
 }
 
-function renderLista(){
+function renderHome(){
   const treinos = getTreinos();
   const host = document.getElementById("listaTreinos");
-  host.innerHTML = "";
-
+  host.innerHTML="";
   if(!treinos.length){
-    host.innerHTML = "<p class='text-slate-400'>Nenhum treino salvo.</p>";
+    host.innerHTML="<p class='text-slate-400'>Nenhum treino criado.</p>";
     return;
   }
 
   treinos.forEach((t,i)=>{
-    const div = document.createElement("div");
-    div.className="border border-slate-800 bg-slate-900 rounded-xl p-3 mb-3";
-    div.innerHTML = `
-      <div class="flex justify-between items-center">
-        <span>${t.nome}</span>
-        <button onclick="excluir(${i})" class="text-xs text-pinkshock">Excluir</button>
+    host.innerHTML+=`
+      <div class="bg-slate-900 p-3 rounded-xl mb-3">
+        <div class="flex justify-between">
+          <span>${t.nome}</span>
+          <button onclick="abrirTreino(${i})" class="text-pinkshock text-sm">Ver</button>
+        </div>
       </div>
     `;
-    host.appendChild(div);
   });
 }
 
-function excluir(i){
-  const treinos = getTreinos();
-  treinos.splice(i,1);
-  setTreinos(treinos);
-  renderLista();
+function abrirTreino(i){
+  treinoAtual = getTreinos()[i];
+  document.getElementById("tituloTreino").textContent = treinoAtual.nome;
+  mostrar("telaVisualizar");
+  renderVisual();
 }
 
-document.getElementById("btnSalvar").onclick = () => {
-  const nome = document.getElementById("inputNome").value;
-  const raw = document.getElementById("inputRaw").value;
-
-  if(!nome || !raw) return alert("Preencha os campos");
-
-  const treinos = getTreinos();
-  treinos.push({
-    nome,
-    exercicios: parseLinhas(raw)
+function renderVisual(){
+  const host = document.getElementById("listaExerciciosVisual");
+  host.innerHTML="";
+  treinoAtual.exercicios.forEach(e=>{
+    host.innerHTML+=`
+      <div class="bg-slate-900 p-3 rounded-xl mb-3">
+        ${e.nome} • ${e.series} séries
+      </div>
+    `;
   });
+}
 
-  setTreinos(treinos);
-  renderLista();
+function iniciarExecucao(){
+  mostrar("telaExecucao");
+  renderExecucao();
+}
 
-  document.getElementById("inputNome").value="";
-  document.getElementById("inputRaw").value="";
-};
+function renderExecucao(){
+  const host = document.getElementById("listaExerciciosExec");
+  host.innerHTML="";
+  treinoAtual.exercicios.forEach((e,i)=>{
+    host.innerHTML+=`
+      <div class="bg-slate-900 p-3 rounded-xl mb-3">
+        <div class="flex justify-between items-center">
+          <div>
+            ${e.nome}<br>
+            <span class="text-sm text-slate-400">${e.feitas}/${e.series}</span>
+          </div>
+          <button onclick="marcarSerie(${i})"
+            class="text-sm px-3 py-1 bg-pinkshock rounded-lg">
+            Série feita
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
 
-document.getElementById("btnLimpar").onclick = () => {
-  if(confirm("Apagar todos os dados?")){
-    localStorage.removeItem(KEY);
-    renderLista();
+function marcarSerie(i){
+  const e = treinoAtual.exercicios[i];
+  if(e.feitas < e.series){
+    e.feitas++;
+    iniciarTimer(e.descanso);
+    renderExecucao();
   }
+}
+
+function finalizar(){
+  treinoAtual.exercicios.forEach(e=>e.feitas=0);
+  mostrar("telaHome");
+  renderHome();
+}
+
+function mostrar(id){
+  ["telaHome","telaCadastrar","telaVisualizar","telaExecucao"]
+  .forEach(t=>document.getElementById(t).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+
+document.getElementById("btnNovo").onclick=()=>mostrar("telaCadastrar");
+document.getElementById("btnCancelar").onclick=()=>mostrar("telaHome");
+document.getElementById("btnVoltarHome").onclick=()=>mostrar("telaHome");
+document.getElementById("btnIniciar").onclick=iniciarExecucao;
+document.getElementById("btnFinalizar").onclick=finalizar;
+
+document.getElementById("btnSalvar").onclick=()=>{
+  const nome=document.getElementById("inputNome").value;
+  const raw=document.getElementById("inputRaw").value;
+  if(!nome||!raw) return alert("Preencha os campos");
+  const treinos=getTreinos();
+  treinos.push({nome,exercicios:parseLinhas(raw)});
+  setTreinos(treinos);
+  renderHome();
+  mostrar("telaHome");
 };
 
-document.getElementById("btnExportar").onclick = () => {
-  const dados = localStorage.getItem(KEY);
+document.getElementById("navHome").onclick=()=>mostrar("telaHome");
+
+document.getElementById("navBackup").onclick=()=>{
+  const dados=localStorage.getItem(KEY);
   if(!dados) return alert("Nada para exportar.");
-
-  const blob = new Blob([dados], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "backup_treinos.json";
+  const blob=new Blob([dados],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="backup_treinos.json";
   a.click();
-
-  URL.revokeObjectURL(url);
 };
 
-document.getElementById("btnImportar").onclick = () => {
-  document.getElementById("inputImport").click();
-};
-
-document.getElementById("inputImport").addEventListener("change", function(){
-  const file = this.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try{
-      const dados = JSON.parse(e.target.result);
-      localStorage.setItem(KEY, JSON.stringify(dados));
-      renderLista();
-      alert("Dados importados!");
-    }catch{
-      alert("Arquivo inválido.");
-    }
-  };
-  reader.readAsText(file);
-});
-
-
-// NAVEGAÇÃO
-const telaCadastrar = document.getElementById("telaCadastrar");
-const telaTreinos = document.getElementById("telaTreinos");
-
-document.getElementById("navCadastrar").onclick = ()=>{
-  telaCadastrar.classList.remove("hidden");
-  telaTreinos.classList.add("hidden");
-
-  navCadastrar.classList.add("text-pinkshock");
-  navTreinos.classList.remove("text-pinkshock");
-  navTreinos.classList.add("text-slate-400");
-};
-
-document.getElementById("navTreinos").onclick = ()=>{
-  telaCadastrar.classList.add("hidden");
-  telaTreinos.classList.remove("hidden");
-
-  navTreinos.classList.add("text-pinkshock");
-  navCadastrar.classList.remove("text-pinkshock");
-  navCadastrar.classList.add("text-slate-400");
-};
-
-renderLista();
+renderHome();
 </script>
-
 </body>
 </html>

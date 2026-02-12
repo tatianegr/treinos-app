@@ -25,6 +25,57 @@ tailwind.config = {
 
 <div class="max-w-xl mx-auto p-4">
 
+<!-- LOGIN -->
+<section id="telaLogin" class="hidden">
+  <h1 class="text-2xl font-semibold mb-2">Entrar</h1>
+  <div id="loginSub" class="text-sm text-slate-400 mb-6">
+    Digite seu PIN para acessar seus treinos.
+  </div>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
+    <label class="text-xs text-slate-400">PIN</label>
+    <input id="loginPin" type="password" inputmode="numeric"
+      class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
+      placeholder="Ex: 1234" />
+
+    <div id="boxConfirmPin" class="hidden">
+      <label class="text-xs text-slate-400">Confirmar PIN</label>
+      <input id="loginPin2" type="password" inputmode="numeric"
+        class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
+        placeholder="Repita o PIN" />
+    </div>
+
+    <label class="inline-flex items-center gap-2 text-sm text-slate-200 select-none">
+      <input id="loginRemember" type="checkbox" class="w-4 h-4 accent-pinkshock" checked>
+      lembrar neste dispositivo
+    </label>
+
+    <button id="btnLogin"
+      class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock font-semibold">
+      Entrar
+    </button>
+
+    <div class="mt-4 text-xs text-slate-400 leading-relaxed">
+      Dica: para levar seus treinos do computador pro celular, use o menu <span class="text-slate-200">Backup</span> e escolha
+      <span class="text-slate-200">Compartilhar</span> (ou Exportar) no PC e <span class="text-slate-200">Importar</span> no celular.
+    </div>
+  </div>
+
+  <div class="mt-4 rounded-xl border border-slate-800 bg-slate-900/30 p-3">
+    <div class="text-xs text-slate-400 leading-relaxed">
+      Se você esquecer o PIN, dá pra apagar os dados locais deste dispositivo e recomeçar.
+      Isso apaga seus treinos daqui (então faça backup antes, se possível).
+    </div>
+    <button id="btnResetDevice"
+      class="mt-3 w-full rounded-xl px-4 py-2 bg-slate-900 border border-slate-800 text-sm font-semibold text-slate-200">
+      Apagar dados deste dispositivo
+    </button>
+  </div>
+</section>
+
+<!-- APP SHELL -->
+<div id="appShell" class="hidden">
+
 <!-- HOME -->
 <section id="telaHome">
   <h1 class="text-2xl font-semibold mb-6">Meus treinos</h1>
@@ -304,7 +355,7 @@ tailwind.config = {
 
 </div>
 
-<nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
+<nav id="bottomNav" class="hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
   <div class="max-w-xl mx-auto flex">
     <button id="navHome"
       class="flex-1 py-3 text-sm font-medium text-pinkshock">
@@ -346,6 +397,8 @@ tailwind.config = {
    CONFIG / ESTADO
 ========================= */
 const KEY = "treinos_app_final_v2";
+const AUTH_KEY = "treinos_app_auth_v1";
+
 let treinoAtual = null;
 let treinoAtualIndex = null;
 
@@ -443,6 +496,203 @@ function setNav(ativo){
     home.classList.remove("text-pinkshock");
     home.classList.add("text-slate-400");
   }
+}
+
+/* =========================
+   AUTH (PIN LOCAL)
+========================= */
+let appIniciado = false;
+
+function getAuth(){
+  try{
+    return JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
+  } catch(e){
+    return null;
+  }
+}
+function setAuth(obj){
+  localStorage.setItem(AUTH_KEY, JSON.stringify(obj));
+}
+function isUnlocked(){
+  const a = getAuth();
+  return !!a?.unlocked;
+}
+function isRememberEnabled(){
+  const a = getAuth();
+  return (typeof a?.remember === "boolean") ? a.remember : true;
+}
+function hasPin(){
+  const a = getAuth();
+  return !!a?.pinHash;
+}
+
+function showLoginUI(){
+  document.getElementById("appShell").classList.add("hidden");
+  document.getElementById("bottomNav").classList.add("hidden");
+
+  document.getElementById("telaLogin").classList.remove("hidden");
+
+  const sub = document.getElementById("loginSub");
+  const boxConfirm = document.getElementById("boxConfirmPin");
+  const btn = document.getElementById("btnLogin");
+
+  if(!hasPin()){
+    sub.textContent = "Primeiro acesso: crie um PIN simples para proteger seus treinos neste dispositivo.";
+    boxConfirm.classList.remove("hidden");
+    btn.textContent = "Salvar PIN e entrar";
+  } else {
+    sub.textContent = "Digite seu PIN para acessar seus treinos.";
+    boxConfirm.classList.add("hidden");
+    btn.textContent = "Entrar";
+  }
+
+  document.getElementById("loginPin").value = "";
+  const p2 = document.getElementById("loginPin2");
+  if(p2) p2.value = "";
+}
+
+function showAppUI(){
+  document.getElementById("telaLogin").classList.add("hidden");
+  document.getElementById("appShell").classList.remove("hidden");
+  document.getElementById("bottomNav").classList.remove("hidden");
+}
+
+function isValidPin(pin){
+  const p = String(pin || "").trim();
+  if(p.length < 4 || p.length > 12) return false;
+  return /^\d+$/.test(p);
+}
+function bytesToHex(bytes){
+  return Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+async function sha256Hex(text){
+  const enc = new TextEncoder().encode(String(text));
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return bytesToHex(hash);
+}
+
+async function unlockWithPin(pin, remember){
+  const a = getAuth() || {};
+  const pinHash = await sha256Hex(pin);
+
+  if(a.pinHash && a.pinHash !== pinHash){
+    alert("PIN incorreto.");
+    return false;
+  }
+
+  a.unlocked = true;
+  a.remember = !!remember;
+  setAuth(a);
+  return true;
+}
+
+function applyRememberPolicyOnLoad(){
+  const a = getAuth();
+  if(!a) return;
+
+  if(a.unlocked && !a.remember){
+    a.unlocked = false;
+    setAuth(a);
+  }
+}
+
+function lockApp(){
+  const a = getAuth() || {};
+  a.unlocked = false;
+  setAuth(a);
+
+  mostrar("telaHome");
+  showLoginUI();
+}
+
+async function setNewPinFlow(){
+  const atual = prompt("Digite seu PIN atual:");
+  if(atual === null) return;
+
+  const a = getAuth();
+  if(!a?.pinHash){
+    alert("Não há PIN configurado.");
+    return;
+  }
+
+  const atualHash = await sha256Hex(String(atual).trim());
+  if(atualHash !== a.pinHash){
+    alert("PIN atual incorreto.");
+    return;
+  }
+
+  const novo = prompt("Novo PIN (4 a 12 números):");
+  if(novo === null) return;
+  if(!isValidPin(novo)){
+    alert("PIN inválido. Use apenas números (4 a 12).");
+    return;
+  }
+
+  const novo2 = prompt("Confirme o novo PIN:");
+  if(novo2 === null) return;
+  if(String(novo).trim() !== String(novo2).trim()){
+    alert("Os PINs não coincidem.");
+    return;
+  }
+
+  a.pinHash = await sha256Hex(String(novo).trim());
+  setAuth(a);
+  alert("PIN atualizado.");
+}
+
+function resetThisDevice(){
+  if(!confirm("Isso vai apagar os treinos e o PIN deste dispositivo. Continuar?")) return;
+  localStorage.removeItem(KEY);
+  localStorage.removeItem(AUTH_KEY);
+  alert("Dados apagados deste dispositivo.");
+  location.reload();
+}
+
+async function handleLoginClick(){
+  const pin = document.getElementById("loginPin").value.trim();
+  const remember = document.getElementById("loginRemember").checked;
+
+  if(!isValidPin(pin)){
+    alert("Digite um PIN válido (apenas números, 4 a 12).");
+    return;
+  }
+
+  if(!hasPin()){
+    const pin2 = (document.getElementById("loginPin2").value || "").trim();
+    if(pin2 !== pin){
+      alert("Os PINs não coincidem.");
+      return;
+    }
+
+    const a = getAuth() || {};
+    a.pinHash = await sha256Hex(pin);
+    a.unlocked = true;
+    a.remember = !!remember;
+    setAuth(a);
+
+    showAppUI();
+    initAppOnce();
+    return;
+  }
+
+  const ok = await unlockWithPin(pin, remember);
+  if(!ok) return;
+
+  showAppUI();
+  initAppOnce();
+}
+
+function initAppOnce(){
+  if(appIniciado) return;
+  appIniciado = true;
+
+  renderHome();
+  setNav("home");
+  atualizarUI_Descanso();
+  setCardioCadastro(false);
+  limparCardioCadastroUI();
+
+  mostrar("telaHome");
 }
 
 /* =========================
@@ -1009,7 +1259,6 @@ function renderAltDraft(){
     wrapper.innerHTML = altCardTemplate(ex, idx);
     host.appendChild(wrapper);
 
-    const card = wrapper.querySelector("[data-key]");
     const chk = wrapper.querySelector(".altObrigatorio");
     const btnAdd = wrapper.querySelector(".btnAddAlt");
     const list = wrapper.querySelector(".altList");
@@ -1072,7 +1321,7 @@ function renderAltDraft(){
 
     chk.addEventListener("change", ()=>{
       altDraft[idx].altObrigatorio = !!chk.checked;
-      // re-render só o badge, do jeito simples: re-render tudo
+      // re-render tudo (simples e seguro)
       renderAltDraft();
     });
 
@@ -1627,7 +1876,7 @@ function mostrar(id){
 }
 
 /* =========================
-   BACKUP (EXPORT / IMPORT)
+   BACKUP (EXPORT / IMPORT / SHARE)
 ========================= */
 function exportarBackup(){
   const dados = localStorage.getItem(KEY);
@@ -1639,6 +1888,30 @@ function exportarBackup(){
   a.download = "backup_treinos.json";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+async function compartilharBackup(){
+  const dados = localStorage.getItem(KEY);
+  if(!dados) return alert("Nada para exportar.");
+
+  const blob = new Blob([dados], {type:"application/json"});
+  const file = new File([blob], "backup_treinos.json", {type:"application/json"});
+
+  if(navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share){
+    try{
+      await navigator.share({
+        files: [file],
+        title: "Backup Treinos",
+        text: "Backup do app de treinos"
+      });
+      return;
+    } catch(e){
+      // usuário cancelou ou falhou, cai no fallback
+    }
+  }
+
+  exportarBackup();
+  alert("Seu navegador não suportou compartilhamento direto. Fiz o download do arquivo para você enviar (WhatsApp/Drive).");
 }
 
 function importarBackup(){
@@ -1673,15 +1946,30 @@ function importarBackup(){
   input.click();
 }
 
-function abrirMenuBackup(){
-  const acao = prompt("Backup:\n1 = Exportar\n2 = Importar\n\nDigite 1 ou 2:");
+async function abrirMenuBackup(){
+  const acao = prompt(
+    "Backup:\n" +
+    "1 = Exportar\n" +
+    "2 = Importar\n" +
+    "3 = Compartilhar\n" +
+    "4 = Bloquear\n" +
+    "5 = Trocar PIN\n\n" +
+    "Digite 1-5:"
+  );
+
   if(acao === "1") return exportarBackup();
   if(acao === "2") return importarBackup();
+  if(acao === "3") return compartilharBackup();
+  if(acao === "4") return lockApp();
+  if(acao === "5") return setNewPinFlow();
 }
 
 /* =========================
    EVENTOS
 ========================= */
+document.getElementById("btnLogin").onclick = handleLoginClick;
+document.getElementById("btnResetDevice").onclick = resetThisDevice;
+
 document.getElementById("btnNovo").onclick = () => {
   mostrar("telaCadastrar");
 
@@ -1822,12 +2110,17 @@ document.getElementById("btnSalvar").onclick = () => {
 /* =========================
    INIT
 ========================= */
-renderHome();
-setNav("home");
-atualizarUI_Descanso();
+applyRememberPolicyOnLoad();
 
-setCardioCadastro(false);
-limparCardioCadastroUI();
+if(!hasPin()){
+  showLoginUI();
+} else if(isUnlocked()){
+  showAppUI();
+  initAppOnce();
+} else {
+  showLoginUI();
+}
+
 </script>
 
 </body>

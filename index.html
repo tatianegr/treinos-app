@@ -52,21 +52,52 @@ tailwind.config = {
     class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
     placeholder="Perna, Braço, Costas + bíceps..." />
 
-  <div class="grid grid-cols-2 gap-3 mb-3">
+  <div class="grid grid-cols-2 gap-3 mb-4">
     <div>
       <label class="text-xs text-slate-400">Data de início (opcional)</label>
-      <input id="inputInicio"
-        type="date"
+      <input id="inputInicio" type="date"
         class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mt-1" />
     </div>
     <div>
       <label class="text-xs text-slate-400">Data final (opcional)</label>
-      <input id="inputFim"
-        type="date"
+      <input id="inputFim" type="date"
         class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mt-1" />
     </div>
   </div>
 
+  <!-- CARDIO -->
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-semibold">Cardio</div>
+        <div class="text-xs text-slate-400 mt-1">Terá cardio neste treino?</div>
+      </div>
+
+      <div class="flex gap-2">
+        <button id="btnCardioNao" class="px-3 py-2 rounded-xl bg-slate-800 text-sm font-semibold text-slate-200">Não</button>
+        <button id="btnCardioSim" class="px-3 py-2 rounded-xl bg-pinkshock text-sm font-semibold text-white">Sim</button>
+      </div>
+    </div>
+
+    <div id="boxCardioConfig" class="hidden mt-4">
+      <div class="text-xs text-slate-400 mb-2">
+        Adicione 1 ou mais opções de cardio e o tempo de cada uma (em minutos).
+      </div>
+
+      <div id="listaCardioConfig" class="space-y-2"></div>
+
+      <button id="btnAddCardio"
+        class="mt-3 w-full rounded-xl px-4 py-2 bg-slate-800 text-sm font-semibold">
+        + Adicionar cardio
+      </button>
+
+      <div class="text-[11px] text-slate-400 mt-3 leading-relaxed">
+        Dica: na execução, o cardio vira um timer separado (contagem regressiva) com iniciar/pausar/pular e avanço automático.
+      </div>
+    </div>
+  </div>
+
+  <!-- EXERCÍCIOS -->
   <label class="text-xs text-slate-400">Exercícios</label>
   <textarea id="inputRaw"
     class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[160px] mt-1"
@@ -103,6 +134,11 @@ tailwind.config = {
   <h1 id="tituloTreino" class="text-2xl font-semibold"></h1>
   <div id="subtituloTreino" class="text-sm text-slate-400 mt-1 mb-3"></div>
 
+  <div id="boxCardioResumo" class="hidden mb-3 rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
+    <div class="text-xs text-slate-400">Cardio</div>
+    <div id="cardioResumoTexto" class="text-sm text-slate-200 mt-1"></div>
+  </div>
+
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
     <span>séries • reps • descanso</span>
@@ -125,6 +161,7 @@ tailwind.config = {
       <div id="timerTotal" class="text-5xl font-extrabold text-pinkshock tracking-tight">00:00</div>
     </div>
 
+    <!-- DESCANSO -->
     <div id="boxDescanso" class="hidden mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
       <div class="flex items-center justify-between gap-3">
         <div>
@@ -147,13 +184,56 @@ tailwind.config = {
         </div>
       </div>
     </div>
+
+    <!-- CARDIO TIMER -->
+    <div id="boxCardioTimer" class="hidden mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-xs uppercase tracking-wide text-slate-400">cardio</div>
+          <div id="cardioAtualNome" class="text-sm font-semibold text-slate-200 truncate mt-1">—</div>
+          <div class="flex items-baseline gap-2 mt-1">
+            <div id="timerCardio" class="text-2xl font-bold text-slate-100">00:00</div>
+            <div id="cardioMeta" class="text-sm text-slate-400">de 00:00</div>
+          </div>
+        </div>
+
+        <div class="shrink-0 flex gap-2">
+          <button id="btnCardioPlayPause" class="rounded-xl px-3 py-2 bg-pinkshock text-sm font-semibold">Iniciar</button>
+          <button id="btnPularCardio" class="rounded-xl px-3 py-2 bg-slate-800 text-sm font-semibold">Pular</button>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+          <div id="barraCardio" class="h-full bg-pinkshock w-0"></div>
+        </div>
+      </div>
+
+      <div id="cardioFila" class="mt-3 text-xs text-slate-400"></div>
+    </div>
   </div>
 
+  <!-- EXERCÍCIOS -->
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
     <span>séries</span>
   </div>
   <div id="listaExerciciosExec" class="border border-slate-800 rounded-xl overflow-hidden"></div>
+
+  <!-- CARDIO LISTA (EXEC) -->
+  <div id="boxCardioExec" class="hidden mt-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-3">
+    <div class="flex items-center justify-between">
+      <div>
+        <div class="text-sm font-semibold">Cardio do treino</div>
+        <div class="text-xs text-slate-400 mt-1">Você pode fazer o cardio quando quiser durante o treino.</div>
+      </div>
+      <button id="btnAbrirCardioTimer" class="rounded-xl px-3 py-2 bg-pinkshock text-sm font-semibold">
+        Abrir cardio
+      </button>
+    </div>
+
+    <div id="listaCardioExec" class="mt-3 space-y-2"></div>
+  </div>
 
   <button id="btnFinalizar"
     class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock font-semibold">
@@ -217,12 +297,33 @@ let treinoAtualIndex = null;
 
 let totalInterval = null;
 let descansoInterval = null;
+let cardioInterval = null;
 
 let totalSegundos = 0;
 let treinoInicioMs = null;
 
 let descansoSegundos = 0;
 let descansoTotal = 0;
+
+// cardio timer state
+let cardioAtivo = false;
+let cardioPausado = true;
+let cardioIndex = 0;          // qual item
+let cardioRestante = 0;       // em segundos
+let cardioTotalAtual = 0;     // em segundos
+
+const CARDIO_OPCOES = [
+  "Esteira",
+  "Spinning",
+  "Escada",
+  "Elíptico",
+  "Bicicleta",
+  "Corda",
+  "Remo",
+  "Caminhada",
+  "Corrida",
+  "Outro"
+];
 
 /* =========================
    HELPERS
@@ -255,7 +356,6 @@ function inicioDoDiaMs(){
   return d.getTime();
 }
 function fimDoDiaMsFromISO(iso){
-  // considera a data final como válida até 23:59:59.999
   const d = new Date(iso + "T23:59:59.999");
   return d.getTime();
 }
@@ -290,6 +390,7 @@ function iniciarCronometroTreino(){
   },1000);
 }
 
+/* descanso */
 function atualizarUI_Descanso(){
   const box = document.getElementById("boxDescanso");
   const timer = document.getElementById("timerDescanso");
@@ -310,7 +411,6 @@ function atualizarUI_Descanso(){
     barra.style.width = "0%";
   }
 }
-
 function iniciarDescanso(seg){
   const s = Number(seg);
   if(!Number.isFinite(s) || s <= 0) return;
@@ -318,7 +418,6 @@ function iniciarDescanso(seg){
   clearInterval(descansoInterval);
   descansoTotal = Math.floor(s);
   descansoSegundos = descansoTotal;
-
   atualizarUI_Descanso();
 
   descansoInterval = setInterval(()=>{
@@ -333,12 +432,178 @@ function iniciarDescanso(seg){
     }
   },1000);
 }
-
 function pularDescanso(){
   clearInterval(descansoInterval);
   descansoSegundos = 0;
   descansoTotal = 0;
   atualizarUI_Descanso();
+}
+
+/* cardio */
+function resetCardioState(){
+  clearInterval(cardioInterval);
+  cardioAtivo = false;
+  cardioPausado = true;
+  cardioIndex = 0;
+  cardioRestante = 0;
+  cardioTotalAtual = 0;
+
+  const box = document.getElementById("boxCardioTimer");
+  box.classList.add("hidden");
+  document.getElementById("timerCardio").textContent = "00:00";
+  document.getElementById("cardioMeta").textContent = "de 00:00";
+  document.getElementById("barraCardio").style.width = "0%";
+  document.getElementById("cardioAtualNome").textContent = "—";
+  document.getElementById("cardioFila").textContent = "";
+
+  const btn = document.getElementById("btnCardioPlayPause");
+  btn.textContent = "Iniciar";
+}
+
+function temCardioValido(treino){
+  const items = treino?.cardio?.items || [];
+  return treino?.cardio?.enabled && Array.isArray(items) && items.some(i => Number(i?.duracaoSeg) > 0);
+}
+
+function montarFilaCardioTexto(treino){
+  const items = (treino?.cardio?.items || []).filter(i => Number(i?.duracaoSeg) > 0);
+  if(!items.length) return "";
+  return items.map((it, idx) => {
+    const nome = it.tipo || "Cardio";
+    const t = formatar(it.duracaoSeg);
+    return `${idx+1}. ${nome} (${t})`;
+  }).join(" • ");
+}
+
+function abrirCardioTimer(){
+  if(!temCardioValido(treinoAtual)){
+    alert("Esse treino não tem cardio configurado (ou está sem tempo).");
+    return;
+  }
+
+  document.getElementById("boxCardioTimer").classList.remove("hidden");
+
+  if(!cardioAtivo){
+    cardioAtivo = true;
+    cardioPausado = true;
+    cardioIndex = 0;
+    carregarCardioAtual();
+    atualizarUI_Cardio();
+  }
+}
+
+function carregarCardioAtual(){
+  const items = (treinoAtual.cardio.items || []).filter(i => Number(i?.duracaoSeg) > 0);
+  if(!items.length){
+    resetCardioState();
+    return;
+  }
+
+  if(cardioIndex >= items.length){
+    // terminou tudo
+    clearInterval(cardioInterval);
+    cardioPausado = true;
+    cardioRestante = 0;
+    cardioTotalAtual = 0;
+
+    document.getElementById("cardioAtualNome").textContent = "Cardio finalizado";
+    document.getElementById("timerCardio").textContent = "00:00";
+    document.getElementById("cardioMeta").textContent = "de 00:00";
+    document.getElementById("barraCardio").style.width = "100%";
+    document.getElementById("btnCardioPlayPause").textContent = "Reiniciar";
+    document.getElementById("cardioFila").textContent = montarFilaCardioTexto(treinoAtual);
+    navigator.vibrate?.(200);
+    return;
+  }
+
+  const atual = items[cardioIndex];
+  cardioTotalAtual = Number(atual.duracaoSeg) || 0;
+  cardioRestante = cardioTotalAtual;
+
+  document.getElementById("cardioAtualNome").textContent = atual.tipo || "Cardio";
+  document.getElementById("cardioFila").textContent = montarFilaCardioTexto(treinoAtual);
+  document.getElementById("btnCardioPlayPause").textContent = "Iniciar";
+}
+
+function atualizarUI_Cardio(){
+  const t = document.getElementById("timerCardio");
+  const meta = document.getElementById("cardioMeta");
+  const barra = document.getElementById("barraCardio");
+
+  t.textContent = formatar(Math.max(0, cardioRestante));
+  meta.textContent = `de ${formatar(Math.max(0, cardioTotalAtual))}`;
+
+  if(cardioTotalAtual > 0){
+    const pct = Math.max(0, Math.min(100, Math.round(((cardioTotalAtual - cardioRestante) / cardioTotalAtual) * 100)));
+    barra.style.width = pct + "%";
+  } else {
+    barra.style.width = "0%";
+  }
+}
+
+function tickCardio(){
+  cardioRestante--;
+  atualizarUI_Cardio();
+
+  if(cardioRestante <= 0){
+    clearInterval(cardioInterval);
+    cardioRestante = 0;
+    atualizarUI_Cardio();
+    navigator.vibrate?.(200);
+
+    cardioIndex++;
+    cardioPausado = true;
+    carregarCardioAtual();
+  }
+}
+
+function toggleCardioPlayPause(){
+  if(!temCardioValido(treinoAtual)){
+    alert("Esse treino não tem cardio configurado (ou está sem tempo).");
+    return;
+  }
+
+  // se terminou tudo e clicou "Reiniciar"
+  const items = (treinoAtual.cardio.items || []).filter(i => Number(i?.duracaoSeg) > 0);
+  if(cardioIndex >= items.length){
+    cardioAtivo = true;
+    cardioPausado = true;
+    cardioIndex = 0;
+    carregarCardioAtual();
+    atualizarUI_Cardio();
+  }
+
+  // se tá pausado -> começa
+  if(cardioPausado){
+    if(cardioTotalAtual <= 0){
+      carregarCardioAtual();
+    }
+    if(cardioRestante <= 0){
+      // caso esquisito: reinicia o atual
+      cardioRestante = cardioTotalAtual;
+    }
+
+    cardioPausado = false;
+    document.getElementById("btnCardioPlayPause").textContent = "Pausar";
+    clearInterval(cardioInterval);
+    cardioInterval = setInterval(tickCardio, 1000);
+    return;
+  }
+
+  // se tá rodando -> pausa
+  cardioPausado = true;
+  document.getElementById("btnCardioPlayPause").textContent = "Continuar";
+  clearInterval(cardioInterval);
+}
+
+function pularCardioAtual(){
+  if(!cardioAtivo) return;
+  clearInterval(cardioInterval);
+  cardioPausado = true;
+
+  cardioIndex++;
+  carregarCardioAtual();
+  atualizarUI_Cardio();
 }
 
 /* =========================
@@ -363,10 +628,22 @@ function normalizarTreinos(treinos){
     if(typeof t.descricao === "undefined") t.descricao = "";
 
     if(typeof t.periodo !== "object" || t.periodo === null){
-      t.periodo = { inicio: null, fim: null }; // ISO YYYY-MM-DD
+      t.periodo = { inicio: null, fim: null };
     } else {
       if(typeof t.periodo.inicio === "undefined") t.periodo.inicio = null;
       if(typeof t.periodo.fim === "undefined") t.periodo.fim = null;
+    }
+
+    // cardio
+    if(typeof t.cardio !== "object" || t.cardio === null){
+      t.cardio = { enabled: false, items: [] };
+    } else {
+      if(typeof t.cardio.enabled !== "boolean") t.cardio.enabled = false;
+      if(!Array.isArray(t.cardio.items)) t.cardio.items = [];
+      t.cardio.items = t.cardio.items.map(i => ({
+        tipo: (i?.tipo ?? "").toString(),
+        duracaoSeg: Number(i?.duracaoSeg) || 0
+      }));
     }
 
     if(t.lastSession && typeof t.lastSession !== "object"){
@@ -377,23 +654,21 @@ function normalizarTreinos(treinos){
 }
 
 function removerTreinosExpirados(treinos){
-  // remove treinos cuja data final já passou
   const hoje0 = inicioDoDiaMs();
   const antes = treinos.length;
 
   const filtrados = treinos.filter(t=>{
     const fim = t?.periodo?.fim;
-    if(!fim) return true; // sem data final: não expira
+    if(!fim) return true;
     const fimMs = fimDoDiaMsFromISO(fim);
-    return hoje0 <= fimMs; // mantém até o fim do dia final
+    return hoje0 <= fimMs;
   });
 
-  const removidos = antes - filtrados.length;
-  return { filtrados, removidos };
+  return { filtrados, removidos: antes - filtrados.length };
 }
 
 /* =========================
-   PARSER (SEM ADIVINHAÇÃO)
+   PARSER EXERCÍCIOS
 ========================= */
 function parseLinhas(raw){
   return raw
@@ -416,13 +691,127 @@ function parseLinhas(raw){
 }
 
 /* =========================
+   CARDIO (CADASTRO)
+========================= */
+let cardioCadastroEnabled = true; // default "sim" pra ficar visível se você quiser
+function setCardioCadastro(enabled){
+  cardioCadastroEnabled = enabled;
+
+  const box = document.getElementById("boxCardioConfig");
+  const btnSim = document.getElementById("btnCardioSim");
+  const btnNao = document.getElementById("btnCardioNao");
+
+  if(enabled){
+    box.classList.remove("hidden");
+    btnSim.classList.add("bg-pinkshock","text-white");
+    btnSim.classList.remove("bg-slate-800","text-slate-200");
+    btnNao.classList.add("bg-slate-800","text-slate-200");
+    btnNao.classList.remove("bg-pinkshock","text-white");
+  } else {
+    box.classList.add("hidden");
+    btnNao.classList.add("bg-pinkshock","text-white");
+    btnNao.classList.remove("bg-slate-800","text-slate-200");
+    btnSim.classList.add("bg-slate-800","text-slate-200");
+    btnSim.classList.remove("bg-pinkshock","text-white");
+  }
+}
+
+function cardioRowTemplate(tipo="", minutos=""){
+  const opts = CARDIO_OPCOES.map(o => `<option value="${o}" ${o===tipo?"selected":""}>${o}</option>`).join("");
+  const custom = (tipo && !CARDIO_OPCOES.includes(tipo)) ? tipo : "";
+  const isOutro = (tipo === "Outro") || (!!custom);
+
+  return `
+  <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
+    <div class="grid grid-cols-12 gap-2 items-center">
+      <div class="col-span-7">
+        <label class="text-[11px] text-slate-400">Tipo</label>
+        <select class="cardioTipo w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm">
+          ${opts}
+        </select>
+        <input class="cardioCustom ${isOutro ? "" : "hidden"} w-full mt-2 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
+          placeholder="Escreva o cardio (ex: caminhada inclinada)" value="${custom}">
+      </div>
+
+      <div class="col-span-4">
+        <label class="text-[11px] text-slate-400">Tempo (min)</label>
+        <input type="number" min="0" step="1"
+          class="cardioMin w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
+          placeholder="Ex: 15" value="${minutos}">
+      </div>
+
+      <div class="col-span-1 flex justify-end">
+        <button class="btnRemoverCardio text-slate-300 hover:text-white" title="Remover">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function addCardioRow(tipo="", minutos=""){
+  const host = document.getElementById("listaCardioConfig");
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = cardioRowTemplate(tipo, minutos);
+  host.appendChild(wrapper);
+
+  const tipoEl = wrapper.querySelector(".cardioTipo");
+  const customEl = wrapper.querySelector(".cardioCustom");
+  const btnRem = wrapper.querySelector(".btnRemoverCardio");
+
+  tipoEl.addEventListener("change", () => {
+    if(tipoEl.value === "Outro"){
+      customEl.classList.remove("hidden");
+      customEl.focus();
+    } else {
+      customEl.classList.add("hidden");
+      customEl.value = "";
+    }
+  });
+
+  btnRem.addEventListener("click", () => {
+    wrapper.remove();
+  });
+}
+
+function coletarCardioDoCadastro(){
+  if(!cardioCadastroEnabled) return { enabled:false, items:[] };
+
+  const rows = Array.from(document.querySelectorAll("#listaCardioConfig > div"));
+  const items = [];
+
+  rows.forEach(r=>{
+    const tipoEl = r.querySelector(".cardioTipo");
+    const customEl = r.querySelector(".cardioCustom");
+    const minEl = r.querySelector(".cardioMin");
+
+    let tipo = (tipoEl?.value || "").trim();
+    const custom = (customEl?.value || "").trim();
+    if(tipo === "Outro" && custom) tipo = custom;
+    if(!tipo) tipo = "Cardio";
+
+    const minutos = Number(minEl?.value || 0);
+    const duracaoSeg = Math.max(0, Math.floor(minutos * 60));
+
+    // só salva se tiver tempo > 0
+    if(duracaoSeg > 0){
+      items.push({ tipo, duracaoSeg });
+    }
+  });
+
+  return { enabled: items.length > 0, items };
+}
+
+function limparCardioCadastroUI(){
+  document.getElementById("listaCardioConfig").innerHTML = "";
+  // coloca uma linha por padrão quando sim
+  addCardioRow("Esteira", "");
+}
+
+/* =========================
    RENDER
 ========================= */
 function renderHome(){
   let treinos = normalizarTreinos(getTreinos());
-
-  const res = removerTreinosExpirados(treinos);
-  treinos = res.filtrados;
+  treinos = removerTreinosExpirados(treinos).filtrados;
   setTreinos(treinos);
 
   const host = document.getElementById("listaTreinos");
@@ -440,10 +829,11 @@ function renderHome(){
     const desc = (t.descricao || "").trim();
     const periodoIni = t?.periodo?.inicio ? formatarDataISOparaBR(t.periodo.inicio) : null;
     const periodoFim = t?.periodo?.fim ? formatarDataISOparaBR(t.periodo.fim) : null;
+    const periodoTxt = (periodoIni || periodoFim) ? `${periodoIni ?? "—"} → ${periodoFim ?? "—"}` : null;
 
-    const periodoTxt = (periodoIni || periodoFim)
-      ? `${periodoIni ?? "—"} → ${periodoFim ?? "—"}`
-      : null;
+    const cardioTxt = temCardioValido(t)
+      ? `• cardio: <span class="text-slate-200">${(t.cardio.items || []).filter(x=>x.duracaoSeg>0).length} item(ns)</span>`
+      : `• cardio: —`;
 
     host.innerHTML+=`
       <div class="bg-slate-900 p-3 rounded-xl mb-3 border border-slate-800">
@@ -454,6 +844,7 @@ function renderHome(){
             <div class="text-xs text-slate-400 mt-1">
               feito <span class="text-slate-200 font-semibold">${feitos}</span> vez(es)
               ${ultima ? `• última: <span class="text-slate-200">${ultima.data}</span>` : `• última: —`}
+              ${cardioTxt}
               ${periodoTxt ? `<br><span class="text-slate-500">período:</span> <span class="text-slate-200">${periodoTxt}</span>` : ``}
             </div>
           </div>
@@ -466,10 +857,7 @@ function renderHome(){
 
 function abrirTreino(i){
   let treinos = normalizarTreinos(getTreinos());
-
-  // limpa expirados antes de abrir (pra não abrir algo que já devia ter sumido)
-  const res = removerTreinosExpirados(treinos);
-  treinos = res.filtrados;
+  treinos = removerTreinosExpirados(treinos).filtrados;
   setTreinos(treinos);
 
   treinoAtualIndex = i;
@@ -495,12 +883,22 @@ function abrirTreino(i){
   const periodoFim = treinoAtual?.periodo?.fim ? formatarDataISOparaBR(treinoAtual.periodo.fim) : null;
   const periodoTxt = (periodoIni || periodoFim) ? `Período: ${periodoIni ?? "—"} → ${periodoFim ?? "—"}` : "";
 
-  const sub = [
-    desc ? desc : null,
-    periodoTxt ? periodoTxt : null
-  ].filter(Boolean).join(" • ");
-
+  const sub = [ desc ? desc : null, periodoTxt ? periodoTxt : null ].filter(Boolean).join(" • ");
   document.getElementById("subtituloTreino").textContent = sub || "";
+
+  // cardio resumo
+  const box = document.getElementById("boxCardioResumo");
+  const txt = document.getElementById("cardioResumoTexto");
+  if(temCardioValido(treinoAtual)){
+    box.classList.remove("hidden");
+    txt.textContent = (treinoAtual.cardio.items || [])
+      .filter(i=>i.duracaoSeg>0)
+      .map(i => `${i.tipo} (${formatar(i.duracaoSeg)})`)
+      .join(" • ");
+  } else {
+    box.classList.add("hidden");
+    txt.textContent = "";
+  }
 
   mostrar("telaVisualizar");
   renderVisual();
@@ -549,9 +947,11 @@ function iniciarExecucao(){
   treinoInicioMs = agoraMs();
   iniciarCronometroTreino();
   pularDescanso();
+  resetCardioState();
 
   mostrar("telaExecucao");
   renderExecucao();
+  renderCardioExec();
 }
 
 function renderExecucao(){
@@ -611,8 +1011,28 @@ function renderExecucao(){
   });
 }
 
+function renderCardioExec(){
+  const box = document.getElementById("boxCardioExec");
+  const lista = document.getElementById("listaCardioExec");
+
+  if(!temCardioValido(treinoAtual)){
+    box.classList.add("hidden");
+    lista.innerHTML = "";
+    return;
+  }
+
+  box.classList.remove("hidden");
+  const items = (treinoAtual.cardio.items || []).filter(i=>i.duracaoSeg>0);
+  lista.innerHTML = items.map(it => `
+    <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3 flex justify-between">
+      <div class="text-sm text-slate-200">${it.tipo}</div>
+      <div class="text-sm text-slate-400">${formatar(it.duracaoSeg)}</div>
+    </div>
+  `).join("");
+}
+
 /* =========================
-   AÇÕES
+   AÇÕES (EXERCÍCIOS)
 ========================= */
 function marcarSerieEmIndice(exIdx, serieNumero){
   const e = treinoAtual.exercicios[exIdx];
@@ -649,6 +1069,9 @@ function marcarSerieEmIndice(exIdx, serieNumero){
   renderExecucao();
 }
 
+/* =========================
+   RESUMO FINAL + FINALIZAR
+========================= */
 function abrirResumo(inicioMs, fimMs, duracaoSeg){
   const ini = formatarDataHora(inicioMs);
   const fim = formatarDataHora(fimMs);
@@ -669,17 +1092,17 @@ function abrirResumo(inicioMs, fimMs, duracaoSeg){
 function finalizar(){
   clearInterval(totalInterval);
   clearInterval(descansoInterval);
+  clearInterval(cardioInterval);
+
   pularDescanso();
+  resetCardioState();
 
   const fimMs = agoraMs();
   const inicioMs = treinoInicioMs ?? (fimMs - (totalSegundos * 1000));
   const duracaoSeg = totalSegundos;
 
   let treinos = normalizarTreinos(getTreinos());
-
-  // limpa expirados antes de gravar (segurança extra)
-  const res = removerTreinosExpirados(treinos);
-  treinos = res.filtrados;
+  treinos = removerTreinosExpirados(treinos).filtrados;
 
   if(typeof treinoAtualIndex === "number" && treinos[treinoAtualIndex]){
     treinos[treinoAtualIndex].stats.feitos = (treinos[treinoAtualIndex].stats.feitos || 0) + 1;
@@ -737,10 +1160,7 @@ function importarBackup(){
       }
 
       let treinos = normalizarTreinos(data);
-
-      // remove expirados já na importação
-      const res = removerTreinosExpirados(treinos);
-      treinos = res.filtrados;
+      treinos = removerTreinosExpirados(treinos).filtrados;
 
       localStorage.setItem(KEY, JSON.stringify(treinos));
       alert("Backup importado com sucesso!");
@@ -763,7 +1183,20 @@ function abrirMenuBackup(){
 /* =========================
    EVENTOS
 ========================= */
-document.getElementById("btnNovo").onclick = () => mostrar("telaCadastrar");
+document.getElementById("btnNovo").onclick = () => {
+  // reset do cadastro
+  mostrar("telaCadastrar");
+  document.getElementById("inputNome").value = "";
+  document.getElementById("inputDescricao").value = "";
+  document.getElementById("inputInicio").value = "";
+  document.getElementById("inputFim").value = "";
+  document.getElementById("inputRaw").value = "";
+
+  // cardio
+  setCardioCadastro(false);
+  limparCardioCadastroUI();
+};
+
 document.getElementById("btnCancelar").onclick = () => mostrar("telaHome");
 document.getElementById("btnVoltarHome").onclick = () => mostrar("telaHome");
 document.getElementById("btnIniciar").onclick = iniciarExecucao;
@@ -772,55 +1205,6 @@ document.getElementById("btnFinalizar").onclick = finalizar;
 document.getElementById("btnPularDescanso").onclick = pularDescanso;
 
 document.getElementById("btnVoltarResumo").onclick = () => {
-  renderHome();
-  mostrar("telaHome");
-};
-
-document.getElementById("btnSalvar").onclick = () => {
-  const nome = document.getElementById("inputNome").value.trim();
-  const descricao = document.getElementById("inputDescricao").value.trim();
-  const inicio = document.getElementById("inputInicio").value || null; // ISO
-  const fim = document.getElementById("inputFim").value || null;       // ISO
-  const raw = document.getElementById("inputRaw").value.trim();
-
-  if(!nome || !raw) return alert("Preencha o nome e os exercícios.");
-
-  // valida período (se ambos existirem)
-  if(inicio && fim){
-    const iniMs = new Date(inicio + "T00:00:00").getTime();
-    const fimMs = fimDoDiaMsFromISO(fim);
-    if(iniMs > fimMs){
-      return alert("A data de início não pode ser depois da data final.");
-    }
-  }
-
-  const exercicios = parseLinhas(raw);
-  const invalidos = exercicios.filter(e => !e.series || !e.reps);
-  if(invalidos.length){
-    return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
-  }
-
-  let treinos = normalizarTreinos(getTreinos());
-  treinos.push({
-    nome,
-    descricao,
-    periodo: { inicio, fim },
-    exercicios,
-    stats: { feitos: 0, ultimaVezMs: null }
-  });
-
-  // limpa expirados imediatamente (caso alguém salve com fim no passado)
-  const res = removerTreinosExpirados(treinos);
-  treinos = res.filtrados;
-
-  setTreinos(treinos);
-
-  document.getElementById("inputNome").value = "";
-  document.getElementById("inputDescricao").value = "";
-  document.getElementById("inputInicio").value = "";
-  document.getElementById("inputFim").value = "";
-  document.getElementById("inputRaw").value = "";
-
   renderHome();
   mostrar("telaHome");
 };
@@ -835,12 +1219,72 @@ document.getElementById("navBackup").onclick = () => {
   abrirMenuBackup();
 };
 
+/* cardio cadastro events */
+document.getElementById("btnCardioSim").onclick = () => setCardioCadastro(true);
+document.getElementById("btnCardioNao").onclick = () => setCardioCadastro(false);
+document.getElementById("btnAddCardio").onclick = () => addCardioRow("Esteira","");
+
+/* cardio execução events */
+document.getElementById("btnAbrirCardioTimer").onclick = () => {
+  abrirCardioTimer();
+  // se não iniciou ainda, só abre; iniciar é pelo botão iniciar
+};
+document.getElementById("btnCardioPlayPause").onclick = toggleCardioPlayPause;
+document.getElementById("btnPularCardio").onclick = pularCardioAtual;
+
+document.getElementById("btnSalvar").onclick = () => {
+  const nome = document.getElementById("inputNome").value.trim();
+  const descricao = document.getElementById("inputDescricao").value.trim();
+  const inicio = document.getElementById("inputInicio").value || null; // ISO
+  const fim = document.getElementById("inputFim").value || null;       // ISO
+  const raw = document.getElementById("inputRaw").value.trim();
+
+  if(!nome || !raw) return alert("Preencha o nome e os exercícios.");
+
+  // valida período
+  if(inicio && fim){
+    const iniMs = new Date(inicio + "T00:00:00").getTime();
+    const fimMs = fimDoDiaMsFromISO(fim);
+    if(iniMs > fimMs){
+      return alert("A data de início não pode ser depois da data final.");
+    }
+  }
+
+  const exercicios = parseLinhas(raw);
+  const invalidos = exercicios.filter(e => !e.series || !e.reps);
+  if(invalidos.length){
+    return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
+  }
+
+  const cardio = coletarCardioDoCadastro(); // {enabled, items}
+
+  let treinos = normalizarTreinos(getTreinos());
+  treinos.push({
+    nome,
+    descricao,
+    periodo: { inicio, fim },
+    exercicios,
+    cardio,
+    stats: { feitos: 0, ultimaVezMs: null }
+  });
+
+  treinos = removerTreinosExpirados(treinos).filtrados;
+  setTreinos(treinos);
+
+  renderHome();
+  mostrar("telaHome");
+};
+
 /* =========================
    INIT
 ========================= */
 renderHome();
 setNav("home");
 atualizarUI_Descanso();
+
+// cardio cadastro default
+setCardioCadastro(false);
+limparCardioCadastroUI();
 </script>
 
 </body>

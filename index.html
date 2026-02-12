@@ -16,9 +16,7 @@ tailwind.config = {
   darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        pinkshock: '#ff2d8d'
-      }
+      colors: { pinkshock: '#ff2d8d' }
     }
   }
 }
@@ -44,12 +42,34 @@ tailwind.config = {
 <section id="telaCadastrar" class="hidden">
   <h1 class="text-2xl font-semibold mb-6">Novo treino</h1>
 
+  <label class="text-xs text-slate-400">Nome do treino</label>
   <input id="inputNome"
-    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3"
-    placeholder="Nome do treino" />
+    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
+    placeholder="Treino 1" />
 
+  <label class="text-xs text-slate-400">Descrição (tipo do treino)</label>
+  <input id="inputDescricao"
+    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mb-3 mt-1"
+    placeholder="Perna, Braço, Costas + bíceps..." />
+
+  <div class="grid grid-cols-2 gap-3 mb-3">
+    <div>
+      <label class="text-xs text-slate-400">Data de início (opcional)</label>
+      <input id="inputInicio"
+        type="date"
+        class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mt-1" />
+    </div>
+    <div>
+      <label class="text-xs text-slate-400">Data final (opcional)</label>
+      <input id="inputFim"
+        type="date"
+        class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 mt-1" />
+    </div>
+  </div>
+
+  <label class="text-xs text-slate-400">Exercícios</label>
   <textarea id="inputRaw"
-    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[160px]"
+    class="w-full rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 min-h-[160px] mt-1"
     placeholder="Agachamento | 2x10 | descanso 60"></textarea>
 
   <div class="flex gap-2 mt-3">
@@ -68,8 +88,9 @@ tailwind.config = {
       Formato por linha (sem adivinhação):
       <div class="mt-2 text-slate-200">Exercício | 2x10 | descanso 60</div>
       <div class="mt-2">
-        • Se não informar <span class="text-slate-200">2x10</span>, o exercício fica inválido (pra você corrigir)<br>
-        • Se não informar descanso, fica “sem descanso definido”
+        • Séries e reps precisam estar em NxM (ex: 2x10)<br>
+        • Se não informar descanso, fica “sem descanso definido”<br>
+        • Se definir data final, o treino será apagado automaticamente após essa data
       </div>
     </div>
   </div>
@@ -78,7 +99,9 @@ tailwind.config = {
 <!-- VISUALIZAÇÃO -->
 <section id="telaVisualizar" class="hidden">
   <button id="btnVoltarHome" class="text-sm text-pinkshock mb-4">← Voltar</button>
-  <h1 id="tituloTreino" class="text-2xl font-semibold mb-3"></h1>
+
+  <h1 id="tituloTreino" class="text-2xl font-semibold"></h1>
+  <div id="subtituloTreino" class="text-sm text-slate-400 mt-1 mb-3"></div>
 
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
@@ -96,14 +119,12 @@ tailwind.config = {
 <!-- EXECUÇÃO -->
 <section id="telaExecucao" class="hidden">
 
-  <!-- TOPO FIXO: CRONÔMETRO DO TREINO (GRANDE) -->
   <div class="sticky top-0 bg-slate-950 pt-4 pb-3 mb-4 border-b border-slate-800 z-10">
     <div class="text-center">
       <div class="text-sm text-slate-400">Cronômetro do treino</div>
       <div id="timerTotal" class="text-5xl font-extrabold text-pinkshock tracking-tight">00:00</div>
     </div>
 
-    <!-- DESCANSO: TOTALMENTE SEPARADO -->
     <div id="boxDescanso" class="hidden mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
       <div class="flex items-center justify-between gap-3">
         <div>
@@ -128,7 +149,6 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- LISTA LINHA POR LINHA -->
   <div class="text-xs text-slate-400 mb-2 flex justify-between">
     <span>exercício</span>
     <span>séries</span>
@@ -201,7 +221,6 @@ let descansoInterval = null;
 let totalSegundos = 0;
 let treinoInicioMs = null;
 
-// descanso (regressivo) separado
 let descansoSegundos = 0;
 let descansoTotal = 0;
 
@@ -222,6 +241,23 @@ function formatarDataHora(ms){
   const hh = pad2(d.getHours());
   const mm = pad2(d.getMinutes());
   return { data: `${dia}/${mes}/${ano}`, hora: `${hh}:${mm}` };
+}
+function formatarDataISOparaBR(iso){
+  if(!iso) return null;
+  const [y,m,d] = iso.split("-");
+  if(!y || !m || !d) return null;
+  return `${d}/${m}/${y}`;
+}
+function agoraMs(){ return Date.now(); }
+function inicioDoDiaMs(){
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d.getTime();
+}
+function fimDoDiaMsFromISO(iso){
+  // considera a data final como válida até 23:59:59.999
+  const d = new Date(iso + "T23:59:59.999");
+  return d.getTime();
 }
 function setNav(ativo){
   const home = document.getElementById("navHome");
@@ -314,6 +350,7 @@ function getTreinos(){
 function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
+
 function normalizarTreinos(treinos){
   treinos.forEach(t=>{
     if(!t.stats || typeof t.stats !== "object"){
@@ -322,11 +359,37 @@ function normalizarTreinos(treinos){
       if(typeof t.stats.feitos !== "number") t.stats.feitos = 0;
       if(typeof t.stats.ultimaVezMs === "undefined") t.stats.ultimaVezMs = null;
     }
+
+    if(typeof t.descricao === "undefined") t.descricao = "";
+
+    if(typeof t.periodo !== "object" || t.periodo === null){
+      t.periodo = { inicio: null, fim: null }; // ISO YYYY-MM-DD
+    } else {
+      if(typeof t.periodo.inicio === "undefined") t.periodo.inicio = null;
+      if(typeof t.periodo.fim === "undefined") t.periodo.fim = null;
+    }
+
     if(t.lastSession && typeof t.lastSession !== "object"){
       t.lastSession = null;
     }
   });
   return treinos;
+}
+
+function removerTreinosExpirados(treinos){
+  // remove treinos cuja data final já passou
+  const hoje0 = inicioDoDiaMs();
+  const antes = treinos.length;
+
+  const filtrados = treinos.filter(t=>{
+    const fim = t?.periodo?.fim;
+    if(!fim) return true; // sem data final: não expira
+    const fimMs = fimDoDiaMsFromISO(fim);
+    return hoje0 <= fimMs; // mantém até o fim do dia final
+  });
+
+  const removidos = antes - filtrados.length;
+  return { filtrados, removidos };
 }
 
 /* =========================
@@ -357,6 +420,9 @@ function parseLinhas(raw){
 ========================= */
 function renderHome(){
   let treinos = normalizarTreinos(getTreinos());
+
+  const res = removerTreinosExpirados(treinos);
+  treinos = res.filtrados;
   setTreinos(treinos);
 
   const host = document.getElementById("listaTreinos");
@@ -371,14 +437,24 @@ function renderHome(){
     const feitos = t.stats?.feitos ?? 0;
     const ultima = t.stats?.ultimaVezMs ? formatarDataHora(t.stats.ultimaVezMs) : null;
 
+    const desc = (t.descricao || "").trim();
+    const periodoIni = t?.periodo?.inicio ? formatarDataISOparaBR(t.periodo.inicio) : null;
+    const periodoFim = t?.periodo?.fim ? formatarDataISOparaBR(t.periodo.fim) : null;
+
+    const periodoTxt = (periodoIni || periodoFim)
+      ? `${periodoIni ?? "—"} → ${periodoFim ?? "—"}`
+      : null;
+
     host.innerHTML+=`
       <div class="bg-slate-900 p-3 rounded-xl mb-3 border border-slate-800">
         <div class="flex justify-between items-start gap-3">
           <div class="min-w-0">
             <div class="font-medium truncate">${t.nome}</div>
+            ${desc ? `<div class="text-xs text-slate-300 mt-1">${desc}</div>` : ``}
             <div class="text-xs text-slate-400 mt-1">
               feito <span class="text-slate-200 font-semibold">${feitos}</span> vez(es)
               ${ultima ? `• última: <span class="text-slate-200">${ultima.data}</span>` : `• última: —`}
+              ${periodoTxt ? `<br><span class="text-slate-500">período:</span> <span class="text-slate-200">${periodoTxt}</span>` : ``}
             </div>
           </div>
           <button onclick="abrirTreino(${i})" class="text-pinkshock text-sm font-semibold shrink-0">Ver</button>
@@ -389,11 +465,21 @@ function renderHome(){
 }
 
 function abrirTreino(i){
-  const treinos = normalizarTreinos(getTreinos());
+  let treinos = normalizarTreinos(getTreinos());
+
+  // limpa expirados antes de abrir (pra não abrir algo que já devia ter sumido)
+  const res = removerTreinosExpirados(treinos);
+  treinos = res.filtrados;
   setTreinos(treinos);
 
   treinoAtualIndex = i;
   treinoAtual = treinos[i];
+
+  if(!treinoAtual){
+    renderHome();
+    mostrar("telaHome");
+    return;
+  }
 
   (treinoAtual.exercicios || []).forEach(e=>{
     if(typeof e.series === "undefined") e.series = null;
@@ -403,6 +489,19 @@ function abrirTreino(i){
   });
 
   document.getElementById("tituloTreino").textContent = treinoAtual.nome;
+
+  const desc = (treinoAtual.descricao || "").trim();
+  const periodoIni = treinoAtual?.periodo?.inicio ? formatarDataISOparaBR(treinoAtual.periodo.inicio) : null;
+  const periodoFim = treinoAtual?.periodo?.fim ? formatarDataISOparaBR(treinoAtual.periodo.fim) : null;
+  const periodoTxt = (periodoIni || periodoFim) ? `Período: ${periodoIni ?? "—"} → ${periodoFim ?? "—"}` : "";
+
+  const sub = [
+    desc ? desc : null,
+    periodoTxt ? periodoTxt : null
+  ].filter(Boolean).join(" • ");
+
+  document.getElementById("subtituloTreino").textContent = sub || "";
+
   mostrar("telaVisualizar");
   renderVisual();
 }
@@ -447,7 +546,7 @@ function renderVisual(){
 }
 
 function iniciarExecucao(){
-  treinoInicioMs = Date.now();
+  treinoInicioMs = agoraMs();
   iniciarCronometroTreino();
   pularDescanso();
 
@@ -537,13 +636,11 @@ function marcarSerieEmIndice(exIdx, serieNumero){
 
   const feitasDepois = e.feitas;
 
-  // ✅ REGRA DEFINITIVA:
-  // descanso só acontece quando você AVANÇA e ainda NÃO concluiu o exercício.
+  // descanso só quando avança e ainda NÃO concluiu o exercício
   const avancou = feitasDepois > feitasAntes;
   const concluiuExercicio = feitasDepois >= e.series;
 
   if(concluiuExercicio){
-    // garantido: ao concluir a última série, NÃO existe descanso rolando
     pularDescanso();
   } else if(avancou && e.descanso){
     iniciarDescanso(e.descanso);
@@ -574,16 +671,22 @@ function finalizar(){
   clearInterval(descansoInterval);
   pularDescanso();
 
-  const fimMs = Date.now();
+  const fimMs = agoraMs();
   const inicioMs = treinoInicioMs ?? (fimMs - (totalSegundos * 1000));
   const duracaoSeg = totalSegundos;
 
   let treinos = normalizarTreinos(getTreinos());
+
+  // limpa expirados antes de gravar (segurança extra)
+  const res = removerTreinosExpirados(treinos);
+  treinos = res.filtrados;
+
   if(typeof treinoAtualIndex === "number" && treinos[treinoAtualIndex]){
     treinos[treinoAtualIndex].stats.feitos = (treinos[treinoAtualIndex].stats.feitos || 0) + 1;
     treinos[treinoAtualIndex].stats.ultimaVezMs = fimMs;
     treinos[treinoAtualIndex].lastSession = { inicioMs, fimMs, duracaoSeg };
   }
+
   setTreinos(treinos);
 
   (treinoAtual.exercicios || []).forEach(e=>e.feitas=0);
@@ -633,22 +736,13 @@ function importarBackup(){
         return alert("Arquivo inválido: esperado um JSON com lista de treinos.");
       }
 
-      data.forEach(t=>{
-        if(typeof t?.nome !== "string" || !Array.isArray(t?.exercicios)){
-          throw new Error("Estrutura inesperada");
-        }
-        t.exercicios.forEach(e=>{
-          if(typeof e.series === "undefined") e.series = null;
-          if(typeof e.reps === "undefined") e.reps = null;
-          if(typeof e.descanso === "undefined") e.descanso = null;
-          if(typeof e.feitas !== "number") e.feitas = 0;
-        });
-        if(!t.stats) t.stats = { feitos: 0, ultimaVezMs: null };
-        if(typeof t.stats.feitos !== "number") t.stats.feitos = 0;
-        if(typeof t.stats.ultimaVezMs === "undefined") t.stats.ultimaVezMs = null;
-      });
+      let treinos = normalizarTreinos(data);
 
-      localStorage.setItem(KEY, JSON.stringify(data));
+      // remove expirados já na importação
+      const res = removerTreinosExpirados(treinos);
+      treinos = res.filtrados;
+
+      localStorage.setItem(KEY, JSON.stringify(treinos));
       alert("Backup importado com sucesso!");
       renderHome();
       mostrar("telaHome");
@@ -684,8 +778,21 @@ document.getElementById("btnVoltarResumo").onclick = () => {
 
 document.getElementById("btnSalvar").onclick = () => {
   const nome = document.getElementById("inputNome").value.trim();
+  const descricao = document.getElementById("inputDescricao").value.trim();
+  const inicio = document.getElementById("inputInicio").value || null; // ISO
+  const fim = document.getElementById("inputFim").value || null;       // ISO
   const raw = document.getElementById("inputRaw").value.trim();
-  if(!nome || !raw) return alert("Preencha os campos");
+
+  if(!nome || !raw) return alert("Preencha o nome e os exercícios.");
+
+  // valida período (se ambos existirem)
+  if(inicio && fim){
+    const iniMs = new Date(inicio + "T00:00:00").getTime();
+    const fimMs = fimDoDiaMsFromISO(fim);
+    if(iniMs > fimMs){
+      return alert("A data de início não pode ser depois da data final.");
+    }
+  }
 
   const exercicios = parseLinhas(raw);
   const invalidos = exercicios.filter(e => !e.series || !e.reps);
@@ -696,13 +803,22 @@ document.getElementById("btnSalvar").onclick = () => {
   let treinos = normalizarTreinos(getTreinos());
   treinos.push({
     nome,
+    descricao,
+    periodo: { inicio, fim },
     exercicios,
     stats: { feitos: 0, ultimaVezMs: null }
   });
 
+  // limpa expirados imediatamente (caso alguém salve com fim no passado)
+  const res = removerTreinosExpirados(treinos);
+  treinos = res.filtrados;
+
   setTreinos(treinos);
 
   document.getElementById("inputNome").value = "";
+  document.getElementById("inputDescricao").value = "";
+  document.getElementById("inputInicio").value = "";
+  document.getElementById("inputFim").value = "";
   document.getElementById("inputRaw").value = "";
 
   renderHome();

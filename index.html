@@ -56,7 +56,10 @@ tailwind.config = {
           <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> treinou
         </div>
         <div class="flex items-center gap-2">
-          <span class="inline-block w-3 h-3 rounded-full bg-slate-700 border border-slate-600"></span> não treinou
+          <span class="inline-block w-3 h-3 rounded-full bg-red-500"></span> não treinou
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full bg-slate-800 border border-slate-700"></span> futuro
         </div>
       </div>
     </div>
@@ -66,7 +69,7 @@ tailwind.config = {
   <div id="boxProgressoTreino" class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4 hidden">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <div class="text-sm text-slate-400">progresso do treino atual</div>
+        <div class="text-sm text-slate-400">progresso do treino (período)</div>
         <div id="progressoTreinoNome" class="text-base font-semibold text-slate-200 truncate mt-1">—</div>
         <div id="progressoTreinoPeriodo" class="text-xs text-slate-500 mt-1">—</div>
       </div>
@@ -172,7 +175,7 @@ tailwind.config = {
       <div>
         <div class="text-sm font-semibold">Alternativas do treino</div>
         <div class="text-xs text-slate-400 mt-1">
-          Marque “Plano B obrigatório” nos exercícios que dependem de máquina, e adicione pelo menos 1 alternativa.
+          Marque “Plano B obrigatório” nos exercícios que dependem de máquina, e preencha alternativas em linhas.
         </div>
       </div>
       <button id="btnFecharAlternativas" class="text-slate-300 hover:text-white text-sm font-semibold">Fechar</button>
@@ -181,7 +184,8 @@ tailwind.config = {
     <div id="listaAlternativasCadastro" class="mt-4 space-y-3"></div>
 
     <div class="text-[11px] text-slate-400 mt-4 leading-relaxed">
-      Regra: se você editar o texto dos exercícios depois, clique novamente em “Configurar alternativas” para atualizar a lista.
+      Formato por linha: <span class="text-slate-200">Exercício | 3x12 | descanso 60</span><br>
+      Dica: se você mudar os exercícios depois, clique de novo em “Configurar alternativas” para atualizar a lista.
     </div>
   </div>
 
@@ -431,12 +435,10 @@ let sessionStartMs = null;
 let sessionEndMs = null;
 
 // alternativas (cadastro)
-let altDraft = []; // array de exercícios com config de alternativas (para o treino sendo cadastrado)
+let altDraft = []; // [{...exercicioBase, altObrigatorio, altRaw}]
 let altDraftDirty = false;
 
-const CARDIO_OPCOES = [
-  "Esteira","Spinning","Escada","Elíptico","Bicicleta","Corda","Remo","Caminhada","Corrida","Outro"
-];
+const CARDIO_OPCOES = ["Esteira","Bike","Escada"];
 
 const MOTIVOS_TROCA = [
   "máquina ocupada",
@@ -531,17 +533,15 @@ function addTrainingDay(isoDate){
   const log = getTrainLog();
   if(!log.includes(d)){
     log.push(d);
-    log.sort(); // iso yyyy-mm-dd ordena ok
+    log.sort();
     setTrainLog(log);
   }
 }
-
-// semana: segunda(0) .. domingo(6)
 function startOfWeekMonday(d){
   const x = new Date(d);
   x.setHours(0,0,0,0);
   const day = x.getDay(); // 0 dom ... 6 sáb
-  const diff = (day === 0 ? -6 : (1 - day)); // volta até segunda
+  const diff = (day === 0 ? -6 : (1 - day));
   x.setDate(x.getDate() + diff);
   return x;
 }
@@ -560,7 +560,6 @@ function renderWeeklySummary(){
   const rangeEl = document.getElementById("semanaRange");
   const numEl = document.getElementById("treinosSemanaNum");
   const dotsHost = document.getElementById("bolinhasSemana");
-
   if(!rangeEl || !numEl || !dotsHost) return;
 
   const now = new Date();
@@ -582,9 +581,9 @@ function renderWeeklySummary(){
     const futuro = iso > todayISO;
 
     const base = "w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold border";
-    let cls = "bg-slate-700 border-slate-600 text-slate-200";
+    let cls = "bg-red-500 border-red-500 text-white";
     if(futuro){
-      cls = "bg-slate-900 border-slate-800 text-slate-500";
+      cls = "bg-slate-800 border-slate-700 text-slate-400";
     } else if(treinou){
       cls = "bg-green-500 border-green-500 text-white";
     }
@@ -595,7 +594,9 @@ function renderWeeklySummary(){
 }
 
 /* =========================
-   PROGRESSO DO TREINO ATUAL (PERÍODO)
+   PROGRESSO DO TREINO (PERÍODO)
+   - mostra se estiver "ativo" (hoje dentro do período)
+   - ou o próximo que vai começar (hoje antes do início)
 ========================= */
 function renderProgressoTreinoAtual(treinos){
   const box = document.getElementById("boxProgressoTreino");
@@ -608,6 +609,7 @@ function renderProgressoTreinoAtual(treinos){
   if(!box || !nomeEl || !periodoEl || !pctEl || !barra || !hint) return;
 
   const hoje0 = inicioDoDiaMs();
+
   const candidatos = (treinos || [])
     .filter(t => t?.periodo?.inicio && t?.periodo?.fim)
     .map(t => {
@@ -617,38 +619,58 @@ function renderProgressoTreinoAtual(treinos){
     })
     .filter(x => Number.isFinite(x.iniMs) && Number.isFinite(x.fimMs) && x.iniMs <= x.fimMs);
 
-  // regra: "treino atual" = aquele cujo período inclui hoje
-  const ativos = candidatos.filter(x => hoje0 >= x.iniMs && hoje0 <= x.fimMs);
-
-  if(!ativos.length){
+  if(!candidatos.length){
     box.classList.add("hidden");
     barra.style.width = "0%";
     return;
   }
 
-  // se tiver mais de um, pega o que termina primeiro
-  ativos.sort((a,b)=>a.fimMs - b.fimMs);
-  const cur = ativos[0];
+  // 1) tenta achar ativo
+  let escolhido = null;
+  const ativos = candidatos.filter(x => hoje0 >= x.iniMs && hoje0 <= x.fimMs);
+  if(ativos.length){
+    ativos.sort((a,b)=>a.fimMs - b.fimMs);
+    escolhido = { ...ativos[0], modo: "ativo" };
+  } else {
+    // 2) senão, pega o próximo a começar
+    const futuros = candidatos.filter(x => hoje0 < x.iniMs);
+    if(!futuros.length){
+      box.classList.add("hidden");
+      barra.style.width = "0%";
+      return;
+    }
+    futuros.sort((a,b)=>a.iniMs - b.iniMs);
+    escolhido = { ...futuros[0], modo: "futuro" };
+  }
 
-  const total = Math.max(1, cur.fimMs - cur.iniMs);
-  const pass = Math.max(0, Math.min(total, hoje0 - cur.iniMs));
-  const pct = Math.max(0, Math.min(100, Math.round((pass / total) * 100)));
+  const iniBR = formatarDataISOparaBR(escolhido.t.periodo.inicio);
+  const fimBR = formatarDataISOparaBR(escolhido.t.periodo.fim);
 
   box.classList.remove("hidden");
-  nomeEl.textContent = cur.t.nome || "Treino";
-  const iniBR = formatarDataISOparaBR(cur.t.periodo.inicio);
-  const fimBR = formatarDataISOparaBR(cur.t.periodo.fim);
+  nomeEl.textContent = escolhido.t.nome || "Treino";
   periodoEl.textContent = `período: ${iniBR} → ${fimBR}`;
+
+  const total = Math.max(1, escolhido.fimMs - escolhido.iniMs);
+
+  if(escolhido.modo === "futuro"){
+    pctEl.textContent = `0%`;
+    barra.style.width = "0%";
+    hint.textContent = `começa em ${iniBR}`;
+    return;
+  }
+
+  const pass = Math.max(0, Math.min(total, hoje0 - escolhido.iniMs));
+  const pct = Math.max(0, Math.min(100, Math.round((pass / total) * 100)));
 
   pctEl.textContent = `${pct}%`;
   barra.style.width = pct + "%";
 
-  const diasTotal = Math.max(1, Math.ceil((cur.fimMs - cur.iniMs) / (24*60*60*1000)));
-  const diasPassados = Math.max(0, Math.floor((hoje0 - cur.iniMs) / (24*60*60*1000)));
+  const diasTotal = Math.max(1, Math.ceil((escolhido.fimMs - escolhido.iniMs) / (24*60*60*1000)));
+  const diasPassados = Math.max(0, Math.floor((hoje0 - escolhido.iniMs) / (24*60*60*1000)));
   const diasRestantes = Math.max(0, diasTotal - diasPassados);
 
   hint.textContent = diasRestantes <= 1
-    ? "último dia do período (aperta o passo 😅)"
+    ? "último dia do período (vai, sem desculpa 😅)"
     : `faltam ~${diasRestantes} dia(s) para acabar o período`;
 }
 
@@ -940,7 +962,7 @@ function removerTreinosExpirados(treinos){
 }
 
 /* =========================
-   PARSER EXERCÍCIOS
+   PARSER EXERCÍCIOS / ALTERNATIVAS
 ========================= */
 function parseLinhas(raw){
   return raw
@@ -958,7 +980,6 @@ function parseLinhas(raw){
       const reps  = sr ? Number(sr[2]) : null;
       const descanso = dm ? Number(dm[1]) : null;
 
-      // base do exercício
       return {
         nome, series, reps, descanso,
         feitas: 0,
@@ -967,6 +988,37 @@ function parseLinhas(raw){
         selectedAlt: 0
       };
     });
+}
+
+function parseAltLinhas(raw){
+  const txt = (raw || "").trim();
+  if(!txt) return [];
+  return txt
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map(l=>{
+      const partes = l.split("|").map(p=>p.trim());
+      const nome = partes[0] || "Alternativa";
+      const sr = (partes[1] || "").match(/^\s*(\d+)\s*x\s*(\d+)\s*$/i);
+      const dm = (partes[2] || "").match(/(\d+)/);
+
+      const series = sr ? Number(sr[1]) : null;
+      const reps  = sr ? Number(sr[2]) : null;
+      const descanso = dm ? Number(dm[1]) : null;
+
+      return { nome, series, reps, descanso };
+    });
+}
+
+function altArrayToRaw(alts){
+  if(!Array.isArray(alts) || !alts.length) return "";
+  return alts.map(a=>{
+    const nome = a?.nome || "Alternativa";
+    const sr = (a?.series && a?.reps) ? `${a.series}x${a.reps}` : "";
+    const ds = (typeof a?.descanso === "number" && a.descanso !== null) ? `descanso ${a.descanso}` : "";
+    return [nome, sr, ds].filter(Boolean).join(" | ");
+  }).join("\n");
 }
 
 /* =========================
@@ -998,22 +1050,17 @@ function setCardioCadastro(enabled){
 
 function cardioRowTemplate(tipo="", minutos=""){
   const opts = CARDIO_OPCOES.map(o => `<option value="${esc(o)}" ${o===tipo?"selected":""}>${esc(o)}</option>`).join("");
-  const custom = (tipo && !CARDIO_OPCOES.includes(tipo)) ? tipo : "";
-  const isOutro = (tipo === "Outro") || (!!custom);
-
   return `
   <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-3">
     <div class="grid grid-cols-12 gap-2 items-center">
-      <div class="col-span-7">
+      <div class="col-span-8">
         <label class="text-[11px] text-slate-400">Tipo</label>
         <select class="cardioTipo w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm">
           ${opts}
         </select>
-        <input class="cardioCustom ${isOutro ? "" : "hidden"} w-full mt-2 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
-          placeholder="Escreva o cardio (ex: caminhada inclinada)" value="${esc(custom)}">
       </div>
 
-      <div class="col-span-4">
+      <div class="col-span-3">
         <label class="text-[11px] text-slate-400">Tempo (min)</label>
         <input type="number" min="0" step="1"
           class="cardioMin w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
@@ -1027,26 +1074,13 @@ function cardioRowTemplate(tipo="", minutos=""){
   </div>`;
 }
 
-function addCardioRow(tipo="", minutos=""){
+function addCardioRow(tipo="Esteira", minutos=""){
   const host = document.getElementById("listaCardioConfig");
   const wrapper = document.createElement("div");
   wrapper.innerHTML = cardioRowTemplate(tipo, minutos);
   host.appendChild(wrapper);
 
-  const tipoEl = wrapper.querySelector(".cardioTipo");
-  const customEl = wrapper.querySelector(".cardioCustom");
   const btnRem = wrapper.querySelector(".btnRemoverCardio");
-
-  tipoEl.addEventListener("change", () => {
-    if(tipoEl.value === "Outro"){
-      customEl.classList.remove("hidden");
-      customEl.focus();
-    } else {
-      customEl.classList.add("hidden");
-      customEl.value = "";
-    }
-  });
-
   btnRem.addEventListener("click", () => wrapper.remove());
 }
 
@@ -1058,12 +1092,9 @@ function coletarCardioDoCadastro(){
 
   rows.forEach(r=>{
     const tipoEl = r.querySelector(".cardioTipo");
-    const customEl = r.querySelector(".cardioCustom");
     const minEl = r.querySelector(".cardioMin");
 
     let tipo = (tipoEl?.value || "").trim();
-    const custom = (customEl?.value || "").trim();
-    if(tipo === "Outro" && custom) tipo = custom;
     if(!tipo) tipo = "Cardio";
 
     const minutos = Number(minEl?.value || 0);
@@ -1083,23 +1114,16 @@ function limparCardioCadastroUI(){
 }
 
 /* =========================
-   ALTERNATIVAS (CADASTRO)
+   ALTERNATIVAS (CADASTRO) - textarea por exercício
 ========================= */
-function keyExercicioCadastro(e, idx){
-  return `${idx}__${(e?.nome || "").toLowerCase()}`;
-}
-
 function altCardTemplate(ex, idx){
-  const k = keyExercicioCadastro(ex, idx);
   const obrig = ex.altObrigatorio ? "checked" : "";
   const badge = ex.altObrigatorio
     ? `<span class="text-[10px] px-2 py-1 rounded-full bg-pinkshock/20 text-pinkshock border border-pinkshock/30">plano b obrigatório</span>`
     : `<span class="text-[10px] px-2 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">opcional</span>`;
 
-  const altCount = (ex.alternativas || []).length;
-
   return `
-  <div class="rounded-2xl border border-slate-800 bg-slate-950/30 p-3" data-key="${esc(k)}">
+  <div class="rounded-2xl border border-slate-800 bg-slate-950/30 p-3">
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <div class="font-semibold truncate">${esc(ex.nome)}</div>
@@ -1108,70 +1132,20 @@ function altCardTemplate(ex, idx){
         </div>
         <div class="mt-2">${badge}</div>
       </div>
-      <div class="shrink-0 flex flex-col items-end gap-2">
-        <label class="inline-flex items-center gap-2 text-xs text-slate-300 select-none">
-          <input type="checkbox" class="altObrigatorio w-4 h-4 accent-pinkshock" ${obrig}>
-          plano b obrigatório
-        </label>
-        <button class="btnAddAlt rounded-xl px-3 py-2 bg-slate-800 text-sm font-semibold">
-          + alternativa
-        </button>
-      </div>
+
+      <label class="inline-flex items-center gap-2 text-xs text-slate-300 select-none shrink-0">
+        <input type="checkbox" class="altObrigatorio w-4 h-4 accent-pinkshock" ${obrig}>
+        plano b obrigatório
+      </label>
     </div>
 
-    <div class="altList mt-3 space-y-2 ${altCount ? "" : "hidden"}"></div>
+    <div class="mt-3">
+      <label class="text-[11px] text-slate-400">Alternativas (1 por linha)</label>
+      <textarea class="altRaw w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm min-h-[92px]"
+        placeholder="Leg press | 3x12 | descanso 60&#10;Agachamento smith | 3x10 | descanso 60">${esc(ex.altRaw || "")}</textarea>
 
-    <div class="altEmpty mt-3 text-xs text-slate-400 ${altCount ? "hidden" : ""}">
-      nenhuma alternativa adicionada.
-    </div>
-  </div>`;
-}
-
-function altRowTemplate(a, altIdx){
-  const nome = a?.nome ?? "";
-  const series = a?.series ?? "";
-  const reps = a?.reps ?? "";
-  const descanso = (typeof a?.descanso === "number" ? a.descanso : (a?.descanso ?? ""));
-
-  return `
-  <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
-    <div class="grid grid-cols-12 gap-2 items-start">
-      <div class="col-span-12">
-        <div class="flex items-center justify-between">
-          <div class="text-[11px] text-slate-400">alternativa ${altIdx+1}</div>
-          <button class="btnRemAlt text-slate-300 hover:text-white text-sm font-semibold">remover</button>
-        </div>
-      </div>
-
-      <div class="col-span-12">
-        <label class="text-[11px] text-slate-400">Nome</label>
-        <input class="altNome w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
-          placeholder="Leg press" value="${esc(nome)}">
-      </div>
-
-      <div class="col-span-4">
-        <label class="text-[11px] text-slate-400">Séries</label>
-        <input type="number" min="1" step="1"
-          class="altSeries w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
-          placeholder="3" value="${esc(series)}">
-      </div>
-      <div class="col-span-4">
-        <label class="text-[11px] text-slate-400">Reps</label>
-        <input type="number" min="1" step="1"
-          class="altReps w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
-          placeholder="12" value="${esc(reps)}">
-      </div>
-      <div class="col-span-4">
-        <label class="text-[11px] text-slate-400">Descanso (s)</label>
-        <input type="number" min="0" step="1"
-          class="altDescanso w-full mt-1 rounded-xl bg-slate-900 border border-slate-800 px-3 py-2 text-sm"
-          placeholder="60" value="${esc(descanso)}">
-      </div>
-
-      <div class="col-span-12 mt-1">
-        <button class="btnHerdar rounded-xl px-3 py-2 bg-slate-800 text-xs font-semibold">
-          herdar séries/reps/descanso do plano a
-        </button>
+      <div class="mt-2 text-[11px] text-slate-500 leading-relaxed">
+        Se você não colocar séries/reps em uma alternativa, ela herda do plano A automaticamente.
       </div>
     </div>
   </div>`;
@@ -1187,22 +1161,27 @@ function abrirConfigAlternativas(){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de configurar alternativas.");
   }
 
-  // Se o texto mudou depois da última config, recomeça (mais seguro)
-  if(altDraftDirty || !altDraft.length){
-    altDraft = exercicios;
-    altDraftDirty = false;
-  } else {
-    // tenta reaproveitar config anterior por índice
-    altDraft = exercicios.map((e, idx) => {
-      const prev = altDraft[idx];
-      if(prev && (prev.nome === e.nome)){
-        e.altObrigatorio = !!prev.altObrigatorio;
-        e.alternativas = Array.isArray(prev.alternativas) ? prev.alternativas : [];
-      }
-      return e;
-    });
-  }
+  // sempre reconstroi a lista (mais seguro e evita “vazamento”)
+  // mas tenta reaproveitar config anterior por índice/nome
+  const prevDraft = altDraft.slice();
 
+  altDraft = exercicios.map((e, idx)=>{
+    const prev = prevDraft[idx];
+    if(prev && prev.nome === e.nome){
+      e.altObrigatorio = !!prev.altObrigatorio;
+      e.altRaw = (prev.altRaw ?? "");
+      return e;
+    }
+    // se tiver vindo de um treino já existente (alternativas já eram array), converte pra raw
+    if(Array.isArray(e.alternativas) && e.alternativas.length){
+      e.altRaw = altArrayToRaw(e.alternativas);
+    } else {
+      e.altRaw = "";
+    }
+    return e;
+  });
+
+  altDraftDirty = false;
   renderAltDraft();
   document.getElementById("boxAlternativasCadastro").classList.remove("hidden");
 }
@@ -1217,74 +1196,14 @@ function renderAltDraft(){
     host.appendChild(wrapper);
 
     const chk = wrapper.querySelector(".altObrigatorio");
-    const btnAdd = wrapper.querySelector(".btnAddAlt");
-    const list = wrapper.querySelector(".altList");
-    const empty = wrapper.querySelector(".altEmpty");
-
-    function renderAltList(){
-      const alts = altDraft[idx].alternativas || [];
-      list.innerHTML = "";
-      if(!alts.length){
-        list.classList.add("hidden");
-        empty.classList.remove("hidden");
-        return;
-      }
-      list.classList.remove("hidden");
-      empty.classList.add("hidden");
-
-      alts.forEach((a, aIdx)=>{
-        const row = document.createElement("div");
-        row.innerHTML = altRowTemplate(a, aIdx);
-        list.appendChild(row);
-
-        const nomeEl = row.querySelector(".altNome");
-        const sEl = row.querySelector(".altSeries");
-        const rEl = row.querySelector(".altReps");
-        const dEl = row.querySelector(".altDescanso");
-        const btnRem = row.querySelector(".btnRemAlt");
-        const btnHerdar = row.querySelector(".btnHerdar");
-
-        function sync(){
-          altDraft[idx].alternativas[aIdx].nome = nomeEl.value.trim();
-          altDraft[idx].alternativas[aIdx].series = Number(sEl.value) || null;
-          altDraft[idx].alternativas[aIdx].reps = Number(rEl.value) || null;
-          altDraft[idx].alternativas[aIdx].descanso = (dEl.value === "" ? null : (Number(dEl.value) || 0));
-        }
-
-        nomeEl.addEventListener("input", sync);
-        sEl.addEventListener("input", sync);
-        rEl.addEventListener("input", sync);
-        dEl.addEventListener("input", sync);
-
-        btnHerdar.addEventListener("click", (ev)=>{
-          ev.preventDefault();
-          const base = altDraft[idx];
-          sEl.value = base.series;
-          rEl.value = base.reps;
-          dEl.value = (base.descanso ?? "");
-          sync();
-        });
-
-        btnRem.addEventListener("click", (ev)=>{
-          ev.preventDefault();
-          altDraft[idx].alternativas.splice(aIdx, 1);
-          renderAltList();
-        });
-      });
-    }
-
-    renderAltList();
+    const ta = wrapper.querySelector(".altRaw");
 
     chk.addEventListener("change", ()=>{
       altDraft[idx].altObrigatorio = !!chk.checked;
-      renderAltDraft();
     });
 
-    btnAdd.addEventListener("click", (ev)=>{
-      ev.preventDefault();
-      altDraft[idx].alternativas = altDraft[idx].alternativas || [];
-      altDraft[idx].alternativas.push({ nome:"", series:null, reps:null, descanso:null });
-      renderAltDraft();
+    ta.addEventListener("input", ()=>{
+      altDraft[idx].altRaw = ta.value;
     });
   });
 }
@@ -1346,7 +1265,6 @@ function abrirModalTroca(exIdx){
     : "escolha plano a ou uma alternativa.";
 
   const opcoes = [];
-
   opcoes.push({
     label: `Plano A: ${ex.nome}`,
     desc: `${ex.series}x${ex.reps} • ${ex.descanso ? `descanso ${ex.descanso}s` : `sem descanso`}`,
@@ -1422,7 +1340,6 @@ function selecionarOpcaoExercicio(exIdx, selectedAlt){
 
   pularDescanso();
   renderExecucao();
-
   fecharModalTroca();
 }
 
@@ -1434,7 +1351,6 @@ function renderHome(){
   treinos = removerTreinosExpirados(treinos).filtrados;
   setTreinos(treinos);
 
-  // novidades da home
   renderWeeklySummary();
   renderProgressoTreinoAtual(treinos);
 
@@ -1803,7 +1719,7 @@ function finalizar(){
 
   setTreinos(treinos);
 
-  // registra o dia no log semanal (conta 1 vez por dia)
+  // registra o dia no log semanal
   addTrainingDay(hojeISODate());
 
   (treinoAtual.exercicios || []).forEach(e=>{
@@ -1971,12 +1887,13 @@ document.getElementById("btnSalvar").onclick = () => {
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
   }
 
+  // aplica alternativas do draft (se existir)
   if(altDraft.length && !altDraftDirty){
     exercicios = exercicios.map((e, idx)=>{
       const d = altDraft[idx];
       if(d && d.nome === e.nome){
         e.altObrigatorio = !!d.altObrigatorio;
-        e.alternativas = Array.isArray(d.alternativas) ? d.alternativas : [];
+        e.alternativas = parseAltLinhas(d.altRaw);
       }
       return e;
     });
@@ -1984,7 +1901,7 @@ document.getElementById("btnSalvar").onclick = () => {
 
   const faltando = validarAltObrigatorias(exercicios);
   if(faltando.length){
-    return alert("Plano B obrigatório sem alternativas em:\n\n- " + faltando.join("\n- ") + "\n\nAbra “Configurar alternativas” e adicione pelo menos 1.");
+    return alert("Plano B obrigatório sem alternativas em:\n\n- " + faltando.join("\n- ") + "\n\nAbra “Configurar alternativas” e preencha pelo menos 1 linha.");
   }
 
   const cardio = coletarCardioDoCadastro();

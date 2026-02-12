@@ -323,7 +323,6 @@ function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
-// garante campos novos (stats) em treinos antigos
 function normalizarTreinos(treinos){
   treinos.forEach(t=>{
     if(!t.stats || typeof t.stats !== "object"){
@@ -332,7 +331,6 @@ function normalizarTreinos(treinos){
       if(typeof t.stats.feitos !== "number") t.stats.feitos = 0;
       if(typeof t.stats.ultimaVezMs === "undefined") t.stats.ultimaVezMs = null;
     }
-    // opcional: sessão anterior (não precisa existir)
     if(t.lastSession && typeof t.lastSession !== "object"){
       t.lastSession = null;
     }
@@ -352,24 +350,14 @@ function parseLinhas(raw){
       const partes = l.split("|").map(p=>p.trim());
 
       const nome = partes[0] || "Exercício";
-
-      // exige NxM
       const sr = (partes[1] || "").match(/^\s*(\d+)\s*x\s*(\d+)\s*$/i);
-
-      // descanso: pega número se houver
       const dm = (partes[2] || "").match(/(\d+)/);
 
       const series = sr ? Number(sr[1]) : null;
       const reps  = sr ? Number(sr[2]) : null;
       const descanso = dm ? Number(dm[1]) : null;
 
-      return {
-        nome,
-        series,   // null se não informado corretamente
-        reps,     // null se não informado corretamente
-        descanso, // null se não informado
-        feitas: 0
-      };
+      return { nome, series, reps, descanso, feitas: 0 };
     });
 }
 
@@ -417,7 +405,6 @@ function abrirTreino(i){
   treinoAtualIndex = i;
   treinoAtual = treinos[i];
 
-  // normaliza exercícios pra não quebrar treinos antigos
   (treinoAtual.exercicios || []).forEach(e=>{
     if(typeof e.series === "undefined") e.series = null;
     if(typeof e.reps === "undefined") e.reps = null;
@@ -470,13 +457,8 @@ function renderVisual(){
 }
 
 function iniciarExecucao(){
-  // marca início (para resumo)
   treinoInicioMs = Date.now();
-
-  // começa só ao clicar INICIAR
   iniciarCronometroTreino();
-
-  // limpa descanso ao iniciar
   pularDescanso();
 
   mostrar("telaExecucao");
@@ -497,6 +479,7 @@ function renderExecucao(){
     const invalido = (!e.series || !e.reps);
     const seriesNum = invalido ? 0 : e.series;
 
+    const concluido = (!invalido && e.feitas >= e.series);
     const sub = invalido
       ? `defina séries e reps no cadastro (ex: 2x10)`
       : `${e.series}x${e.reps} • ${e.descanso ? `descanso ${e.descanso}s` : `sem descanso definido`}`;
@@ -525,7 +508,10 @@ function renderExecucao(){
     host.innerHTML += `
       <div class="flex items-center justify-between gap-3 px-3 py-3 bg-slate-900${borda}">
         <div class="min-w-0">
-          <div class="font-medium truncate">${e.nome}</div>
+          <div class="font-medium truncate">
+            ${e.nome}
+            ${concluido ? `<span class="ml-2 text-[10px] px-2 py-1 rounded-full bg-green-500/15 text-green-300 border border-green-500/25">concluído</span>` : ``}
+          </div>
           <div class="text-xs ${invalido ? "text-red-300" : "text-slate-500"}">${sub}</div>
         </div>
         <div class="shrink-0 flex gap-2 flex-wrap justify-end">
@@ -547,19 +533,29 @@ function marcarSerieEmIndice(exIdx, serieNumero){
     return;
   }
 
-  // desmarcar (voltar)
+  // se clicar numa série já feita -> volta pra trás
   if(serieNumero <= e.feitas){
     e.feitas = Math.max(0, serieNumero - 1);
     renderExecucao();
     return;
   }
 
-  // marcar pra frente
+  // marca pra frente
   e.feitas = Math.min(e.series, serieNumero);
 
-  // inicia descanso apenas se ele estiver definido
-  if(e.descanso){
-    iniciarDescanso(e.descanso);
+  // ✅ REGRA NOVA:
+  // Só inicia descanso se NÃO for a última série desse exercício.
+  // (ou seja: descanso entre séries, não depois de concluir o exercício)
+  const concluiuExercicioAgora = (e.feitas >= e.series);
+
+  if(!concluiuExercicioAgora){
+    if(e.descanso){
+      iniciarDescanso(e.descanso);
+    }
+  } else {
+    // se concluiu o exercício, garante que não fica descanso rolando por engano
+    // (se você quiser manter o descanso anterior até acabar, me avisa; por padrão aqui eu limpo)
+    pularDescanso();
   }
 
   renderExecucao();
@@ -573,7 +569,6 @@ function abrirResumo(inicioMs, fimMs, duracaoSeg){
   document.getElementById("resumoInicio").textContent = ini.hora;
   document.getElementById("resumoFim").textContent = fim.hora;
 
-  // se começar e terminar no mesmo dia, mostra uma vez só
   if(ini.data === fim.data){
     document.getElementById("resumoData").textContent = `Data: ${ini.data}`;
   } else {
@@ -592,19 +587,12 @@ function finalizar(){
   const inicioMs = treinoInicioMs ?? (fimMs - (totalSegundos * 1000));
   const duracaoSeg = totalSegundos;
 
-  // salva stats no treino
   let treinos = normalizarTreinos(getTreinos());
 
   if(typeof treinoAtualIndex === "number" && treinos[treinoAtualIndex]){
     treinos[treinoAtualIndex].stats.feitos = (treinos[treinoAtualIndex].stats.feitos || 0) + 1;
     treinos[treinoAtualIndex].stats.ultimaVezMs = fimMs;
-
-    // opcional: guardar última sessão (útil pro futuro)
-    treinos[treinoAtualIndex].lastSession = {
-      inicioMs,
-      fimMs,
-      duracaoSeg
-    };
+    treinos[treinoAtualIndex].lastSession = { inicioMs, fimMs, duracaoSeg };
   }
 
   setTreinos(treinos);
@@ -612,7 +600,6 @@ function finalizar(){
   // reseta feitas pra próxima execução
   (treinoAtual.exercicios || []).forEach(e=>e.feitas=0);
 
-  // mostra resumo
   abrirResumo(inicioMs, fimMs, duracaoSeg);
 }
 
@@ -714,7 +701,6 @@ document.getElementById("btnSalvar").onclick = () => {
 
   const exercicios = parseLinhas(raw);
 
-  // bloqueia salvar se houver exercício sem "NxM"
   const invalidos = exercicios.filter(e => !e.series || !e.reps);
   if(invalidos.length){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");

@@ -199,8 +199,6 @@ let totalInterval = null;
 let descansoInterval = null;
 
 let totalSegundos = 0;
-
-// controle de início/fim do treino
 let treinoInicioMs = null;
 
 // descanso (regressivo) separado
@@ -215,9 +213,7 @@ function formatar(seg){
   const s = String(seg%60).padStart(2,"0");
   return `${m}:${s}`;
 }
-
 function pad2(n){ return String(n).padStart(2,"0"); }
-
 function formatarDataHora(ms){
   const d = new Date(ms);
   const dia = pad2(d.getDate());
@@ -227,7 +223,6 @@ function formatarDataHora(ms){
   const mm = pad2(d.getMinutes());
   return { data: `${dia}/${mes}/${ano}`, hora: `${hh}:${mm}` };
 }
-
 function setNav(ativo){
   const home = document.getElementById("navHome");
   const backup = document.getElementById("navBackup");
@@ -282,10 +277,7 @@ function atualizarUI_Descanso(){
 
 function iniciarDescanso(seg){
   const s = Number(seg);
-  if(!Number.isFinite(s) || s <= 0){
-    // sem descanso definido: não inicia
-    return;
-  }
+  if(!Number.isFinite(s) || s <= 0) return;
 
   clearInterval(descansoInterval);
   descansoTotal = Math.floor(s);
@@ -322,7 +314,6 @@ function getTreinos(){
 function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
-
 function normalizarTreinos(treinos){
   treinos.forEach(t=>{
     if(!t.stats || typeof t.stats !== "object"){
@@ -365,8 +356,7 @@ function parseLinhas(raw){
    RENDER
 ========================= */
 function renderHome(){
-  let treinos = getTreinos();
-  treinos = normalizarTreinos(treinos);
+  let treinos = normalizarTreinos(getTreinos());
   setTreinos(treinos);
 
   const host = document.getElementById("listaTreinos");
@@ -533,29 +523,30 @@ function marcarSerieEmIndice(exIdx, serieNumero){
     return;
   }
 
-  // se clicar numa série já feita -> volta pra trás
+  const feitasAntes = e.feitas;
+
+  // desmarcar (voltar)
   if(serieNumero <= e.feitas){
     e.feitas = Math.max(0, serieNumero - 1);
     renderExecucao();
     return;
   }
 
-  // marca pra frente
+  // marcar pra frente
   e.feitas = Math.min(e.series, serieNumero);
 
-  // ✅ REGRA NOVA:
-  // Só inicia descanso se NÃO for a última série desse exercício.
-  // (ou seja: descanso entre séries, não depois de concluir o exercício)
-  const concluiuExercicioAgora = (e.feitas >= e.series);
+  const feitasDepois = e.feitas;
 
-  if(!concluiuExercicioAgora){
-    if(e.descanso){
-      iniciarDescanso(e.descanso);
-    }
-  } else {
-    // se concluiu o exercício, garante que não fica descanso rolando por engano
-    // (se você quiser manter o descanso anterior até acabar, me avisa; por padrão aqui eu limpo)
+  // ✅ REGRA DEFINITIVA:
+  // descanso só acontece quando você AVANÇA e ainda NÃO concluiu o exercício.
+  const avancou = feitasDepois > feitasAntes;
+  const concluiuExercicio = feitasDepois >= e.series;
+
+  if(concluiuExercicio){
+    // garantido: ao concluir a última série, NÃO existe descanso rolando
     pularDescanso();
+  } else if(avancou && e.descanso){
+    iniciarDescanso(e.descanso);
   }
 
   renderExecucao();
@@ -588,16 +579,13 @@ function finalizar(){
   const duracaoSeg = totalSegundos;
 
   let treinos = normalizarTreinos(getTreinos());
-
   if(typeof treinoAtualIndex === "number" && treinos[treinoAtualIndex]){
     treinos[treinoAtualIndex].stats.feitos = (treinos[treinoAtualIndex].stats.feitos || 0) + 1;
     treinos[treinoAtualIndex].stats.ultimaVezMs = fimMs;
     treinos[treinoAtualIndex].lastSession = { inicioMs, fimMs, duracaoSeg };
   }
-
   setTreinos(treinos);
 
-  // reseta feitas pra próxima execução
   (treinoAtual.exercicios || []).forEach(e=>e.feitas=0);
 
   abrirResumo(inicioMs, fimMs, duracaoSeg);
@@ -700,7 +688,6 @@ document.getElementById("btnSalvar").onclick = () => {
   if(!nome || !raw) return alert("Preencha os campos");
 
   const exercicios = parseLinhas(raw);
-
   const invalidos = exercicios.filter(e => !e.series || !e.reps);
   if(invalidos.length){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");

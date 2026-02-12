@@ -142,6 +142,36 @@ tailwind.config = {
 
 </section>
 
+<!-- RESUMO FINAL -->
+<section id="telaResumo" class="hidden">
+  <h1 class="text-2xl font-semibold mb-4">Resumo do treino</h1>
+
+  <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div class="text-sm text-slate-400">Duração</div>
+    <div id="resumoDuracao" class="text-4xl font-extrabold text-pinkshock mt-1">00:00</div>
+
+    <div class="mt-4 grid grid-cols-2 gap-3">
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+        <div class="text-xs text-slate-400">Início</div>
+        <div id="resumoInicio" class="text-sm font-semibold text-slate-200 mt-1">—</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+        <div class="text-xs text-slate-400">Fim</div>
+        <div id="resumoFim" class="text-sm font-semibold text-slate-200 mt-1">—</div>
+      </div>
+    </div>
+
+    <div class="mt-3 text-xs text-slate-400">
+      <span id="resumoData">—</span>
+    </div>
+  </div>
+
+  <button id="btnVoltarResumo"
+    class="mt-4 w-full rounded-xl px-4 py-2 bg-pinkshock font-semibold">
+    Voltar para Home
+  </button>
+</section>
+
 </div>
 
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800">
@@ -163,11 +193,15 @@ tailwind.config = {
 ========================= */
 const KEY = "treinos_app_final_v2";
 let treinoAtual = null;
+let treinoAtualIndex = null;
 
 let totalInterval = null;
 let descansoInterval = null;
 
 let totalSegundos = 0;
+
+// controle de início/fim do treino
+let treinoInicioMs = null;
 
 // descanso (regressivo) separado
 let descansoSegundos = 0;
@@ -180,6 +214,18 @@ function formatar(seg){
   const m = String(Math.floor(seg/60)).padStart(2,"0");
   const s = String(seg%60).padStart(2,"0");
   return `${m}:${s}`;
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+
+function formatarDataHora(ms){
+  const d = new Date(ms);
+  const dia = pad2(d.getDate());
+  const mes = pad2(d.getMonth()+1);
+  const ano = d.getFullYear();
+  const hh = pad2(d.getHours());
+  const mm = pad2(d.getMinutes());
+  return { data: `${dia}/${mes}/${ano}`, hora: `${hh}:${mm}` };
 }
 
 function setNav(ativo){
@@ -277,6 +323,23 @@ function setTreinos(data){
   localStorage.setItem(KEY, JSON.stringify(data));
 }
 
+// garante campos novos (stats) em treinos antigos
+function normalizarTreinos(treinos){
+  treinos.forEach(t=>{
+    if(!t.stats || typeof t.stats !== "object"){
+      t.stats = { feitos: 0, ultimaVezMs: null };
+    } else {
+      if(typeof t.stats.feitos !== "number") t.stats.feitos = 0;
+      if(typeof t.stats.ultimaVezMs === "undefined") t.stats.ultimaVezMs = null;
+    }
+    // opcional: sessão anterior (não precisa existir)
+    if(t.lastSession && typeof t.lastSession !== "object"){
+      t.lastSession = null;
+    }
+  });
+  return treinos;
+}
+
 /* =========================
    PARSER (SEM ADIVINHAÇÃO)
 ========================= */
@@ -290,16 +353,14 @@ function parseLinhas(raw){
 
       const nome = partes[0] || "Exercício";
 
-      // séries e reps: exige formato N x M
-      // Ex: "2x10" -> series=2 reps=10
+      // exige NxM
       const sr = (partes[1] || "").match(/^\s*(\d+)\s*x\s*(\d+)\s*$/i);
 
-      // descanso: pega número se houver (ex: "descanso 60" / "60")
+      // descanso: pega número se houver
       const dm = (partes[2] || "").match(/(\d+)/);
 
       const series = sr ? Number(sr[1]) : null;
       const reps  = sr ? Number(sr[2]) : null;
-
       const descanso = dm ? Number(dm[1]) : null;
 
       return {
@@ -316,7 +377,10 @@ function parseLinhas(raw){
    RENDER
 ========================= */
 function renderHome(){
-  const treinos = getTreinos();
+  let treinos = getTreinos();
+  treinos = normalizarTreinos(treinos);
+  setTreinos(treinos);
+
   const host = document.getElementById("listaTreinos");
   host.innerHTML="";
 
@@ -326,14 +390,20 @@ function renderHome(){
   }
 
   treinos.forEach((t,i)=>{
+    const feitos = t.stats?.feitos ?? 0;
+    const ultima = t.stats?.ultimaVezMs ? formatarDataHora(t.stats.ultimaVezMs) : null;
+
     host.innerHTML+=`
       <div class="bg-slate-900 p-3 rounded-xl mb-3 border border-slate-800">
-        <div class="flex justify-between items-center">
-          <div>
-            <div class="font-medium">${t.nome}</div>
-            <div class="text-xs text-slate-400">${(t.exercicios||[]).length} exercícios</div>
+        <div class="flex justify-between items-start gap-3">
+          <div class="min-w-0">
+            <div class="font-medium truncate">${t.nome}</div>
+            <div class="text-xs text-slate-400 mt-1">
+              feito <span class="text-slate-200 font-semibold">${feitos}</span> vez(es)
+              ${ultima ? `• última: <span class="text-slate-200">${ultima.data}</span>` : `• última: —`}
+            </div>
           </div>
-          <button onclick="abrirTreino(${i})" class="text-pinkshock text-sm font-semibold">Ver</button>
+          <button onclick="abrirTreino(${i})" class="text-pinkshock text-sm font-semibold shrink-0">Ver</button>
         </div>
       </div>
     `;
@@ -341,9 +411,13 @@ function renderHome(){
 }
 
 function abrirTreino(i){
-  treinoAtual = getTreinos()[i];
+  const treinos = normalizarTreinos(getTreinos());
+  setTreinos(treinos);
 
-  // normaliza pra não quebrar treinos antigos
+  treinoAtualIndex = i;
+  treinoAtual = treinos[i];
+
+  // normaliza exercícios pra não quebrar treinos antigos
   (treinoAtual.exercicios || []).forEach(e=>{
     if(typeof e.series === "undefined") e.series = null;
     if(typeof e.reps === "undefined") e.reps = null;
@@ -396,6 +470,9 @@ function renderVisual(){
 }
 
 function iniciarExecucao(){
+  // marca início (para resumo)
+  treinoInicioMs = Date.now();
+
   // começa só ao clicar INICIAR
   iniciarCronometroTreino();
 
@@ -488,24 +565,62 @@ function marcarSerieEmIndice(exIdx, serieNumero){
   renderExecucao();
 }
 
+function abrirResumo(inicioMs, fimMs, duracaoSeg){
+  const ini = formatarDataHora(inicioMs);
+  const fim = formatarDataHora(fimMs);
+
+  document.getElementById("resumoDuracao").textContent = formatar(duracaoSeg);
+  document.getElementById("resumoInicio").textContent = ini.hora;
+  document.getElementById("resumoFim").textContent = fim.hora;
+
+  // se começar e terminar no mesmo dia, mostra uma vez só
+  if(ini.data === fim.data){
+    document.getElementById("resumoData").textContent = `Data: ${ini.data}`;
+  } else {
+    document.getElementById("resumoData").textContent = `Início: ${ini.data} • Fim: ${fim.data}`;
+  }
+
+  mostrar("telaResumo");
+}
+
 function finalizar(){
   clearInterval(totalInterval);
   clearInterval(descansoInterval);
-
   pularDescanso();
+
+  const fimMs = Date.now();
+  const inicioMs = treinoInicioMs ?? (fimMs - (totalSegundos * 1000));
+  const duracaoSeg = totalSegundos;
+
+  // salva stats no treino
+  let treinos = normalizarTreinos(getTreinos());
+
+  if(typeof treinoAtualIndex === "number" && treinos[treinoAtualIndex]){
+    treinos[treinoAtualIndex].stats.feitos = (treinos[treinoAtualIndex].stats.feitos || 0) + 1;
+    treinos[treinoAtualIndex].stats.ultimaVezMs = fimMs;
+
+    // opcional: guardar última sessão (útil pro futuro)
+    treinos[treinoAtualIndex].lastSession = {
+      inicioMs,
+      fimMs,
+      duracaoSeg
+    };
+  }
+
+  setTreinos(treinos);
 
   // reseta feitas pra próxima execução
   (treinoAtual.exercicios || []).forEach(e=>e.feitas=0);
 
-  mostrar("telaHome");
-  renderHome();
+  // mostra resumo
+  abrirResumo(inicioMs, fimMs, duracaoSeg);
 }
 
 /* =========================
    SPA
 ========================= */
 function mostrar(id){
-  ["telaHome","telaCadastrar","telaVisualizar","telaExecucao"]
+  ["telaHome","telaCadastrar","telaVisualizar","telaExecucao","telaResumo"]
     .forEach(t=>document.getElementById(t).classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
   setNav("home");
@@ -543,9 +658,9 @@ function importarBackup(){
         return alert("Arquivo inválido: esperado um JSON com lista de treinos.");
       }
 
-      for(const t of data){
+      data.forEach(t=>{
         if(typeof t?.nome !== "string" || !Array.isArray(t?.exercicios)){
-          return alert("Arquivo inválido: estrutura inesperada.");
+          throw new Error("Estrutura inesperada");
         }
         t.exercicios.forEach(e=>{
           if(typeof e.series === "undefined") e.series = null;
@@ -553,7 +668,10 @@ function importarBackup(){
           if(typeof e.descanso === "undefined") e.descanso = null;
           if(typeof e.feitas !== "number") e.feitas = 0;
         });
-      }
+        if(!t.stats) t.stats = { feitos: 0, ultimaVezMs: null };
+        if(typeof t.stats.feitos !== "number") t.stats.feitos = 0;
+        if(typeof t.stats.ultimaVezMs === "undefined") t.stats.ultimaVezMs = null;
+      });
 
       localStorage.setItem(KEY, JSON.stringify(data));
       alert("Backup importado com sucesso!");
@@ -584,6 +702,11 @@ document.getElementById("btnFinalizar").onclick = finalizar;
 
 document.getElementById("btnPularDescanso").onclick = pularDescanso;
 
+document.getElementById("btnVoltarResumo").onclick = () => {
+  renderHome();
+  mostrar("telaHome");
+};
+
 document.getElementById("btnSalvar").onclick = () => {
   const nome = document.getElementById("inputNome").value.trim();
   const raw = document.getElementById("inputRaw").value.trim();
@@ -597,8 +720,13 @@ document.getElementById("btnSalvar").onclick = () => {
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
   }
 
-  const treinos = getTreinos();
-  treinos.push({nome, exercicios});
+  let treinos = normalizarTreinos(getTreinos());
+  treinos.push({
+    nome,
+    exercicios,
+    stats: { feitos: 0, ultimaVezMs: null }
+  });
+
   setTreinos(treinos);
 
   document.getElementById("inputNome").value = "";

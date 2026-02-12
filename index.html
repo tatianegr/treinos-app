@@ -27,7 +27,7 @@ tailwind.config = {
 
 <!-- HOME -->
 <section id="telaHome">
-  <h1 class="text-2xl font-semibold mb-2">Olá, Tati!</h1>
+  <h1 class="text-4xl font-extrabold mb-4 text-center">Olá, Tati!</h1>
 
   <!-- RESUMO SEMANAL -->
   <div class="rounded-2xl border border-slate-800 bg-slate-900/40 p-4 mb-4">
@@ -51,7 +51,10 @@ tailwind.config = {
       </div>
       <div id="bolinhasSemana" class="grid grid-cols-7 gap-2"></div>
 
-      <div class="mt-3 flex items-center gap-3 text-xs text-slate-400">
+      <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-3 h-3 rounded-full bg-blue-500"></span> hoje
+        </div>
         <div class="flex items-center gap-2">
           <span class="inline-block w-3 h-3 rounded-full bg-green-500"></span> treinou
         </div>
@@ -215,7 +218,15 @@ tailwind.config = {
 
 <!-- VISUALIZAÇÃO -->
 <section id="telaVisualizar" class="hidden">
-  <button id="btnVoltarHome" class="text-sm text-pinkshock mb-4">← Voltar</button>
+  <div class="flex items-center justify-between gap-3 mb-4">
+    <button id="btnVoltarHome" class="text-sm text-pinkshock">← Voltar</button>
+
+    <!-- APAGAR TREINO -->
+    <button id="btnApagarTreino"
+      class="text-sm font-semibold text-red-300 hover:text-red-200 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/10">
+      Apagar
+    </button>
+  </div>
 
   <h1 id="tituloTreino" class="text-2xl font-semibold"></h1>
   <div id="subtituloTreino" class="text-sm text-slate-400 mt-1 mb-3"></div>
@@ -507,6 +518,36 @@ function setNav(ativo){
 }
 
 /* =========================
+   APAGAR TREINO
+========================= */
+function apagarTreinoAtual(){
+  if(typeof treinoAtualIndex !== "number") return;
+
+  const nome = treinoAtual?.nome || "este treino";
+  const ok = confirm(`Apagar "${nome}"?\n\nIsso não pode ser desfeito.`);
+  if(!ok) return;
+
+  let treinos = normalizarTreinos(getTreinos());
+  treinos = removerTreinosExpirados(treinos).filtrados;
+
+  if(!treinos[treinoAtualIndex]){
+    renderHome();
+    mostrar("telaHome");
+    return;
+  }
+
+  treinos.splice(treinoAtualIndex, 1);
+  setTreinos(treinos);
+
+  treinoAtual = null;
+  treinoAtualIndex = null;
+
+  alert("Treino apagado.");
+  renderHome();
+  mostrar("telaHome");
+}
+
+/* =========================
    LOG SEMANAL (DIAS TREINADOS)
 ========================= */
 function hojeISODate(){
@@ -556,6 +597,7 @@ function toISODateFromDate(d){
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
 }
+
 function renderWeeklySummary(){
   const rangeEl = document.getElementById("semanaRange");
   const numEl = document.getElementById("treinosSemanaNum");
@@ -579,13 +621,21 @@ function renderWeeklySummary(){
   dotsHost.innerHTML = weekDaysISO.map((iso)=>{
     const treinou = log.includes(iso);
     const futuro = iso > todayISO;
+    const hoje = iso === todayISO;
 
     const base = "w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold border";
     let cls = "bg-red-500 border-red-500 text-white";
+
     if(futuro){
       cls = "bg-slate-800 border-slate-700 text-slate-400";
-    } else if(treinou){
-      cls = "bg-green-500 border-green-500 text-white";
+    } else if(hoje){
+      cls = treinou
+        ? "bg-green-500 border-green-500 text-white"
+        : "bg-blue-500 border-blue-500 text-white";
+    } else {
+      cls = treinou
+        ? "bg-green-500 border-green-500 text-white"
+        : "bg-red-500 border-red-500 text-white";
     }
 
     const dia = iso.split("-")[2];
@@ -595,8 +645,6 @@ function renderWeeklySummary(){
 
 /* =========================
    PROGRESSO DO TREINO (PERÍODO)
-   - mostra se estiver "ativo" (hoje dentro do período)
-   - ou o próximo que vai começar (hoje antes do início)
 ========================= */
 function renderProgressoTreinoAtual(treinos){
   const box = document.getElementById("boxProgressoTreino");
@@ -625,14 +673,12 @@ function renderProgressoTreinoAtual(treinos){
     return;
   }
 
-  // 1) tenta achar ativo
   let escolhido = null;
   const ativos = candidatos.filter(x => hoje0 >= x.iniMs && hoje0 <= x.fimMs);
   if(ativos.length){
     ativos.sort((a,b)=>a.fimMs - b.fimMs);
     escolhido = { ...ativos[0], modo: "ativo" };
   } else {
-    // 2) senão, pega o próximo a começar
     const futuros = candidatos.filter(x => hoje0 < x.iniMs);
     if(!futuros.length){
       box.classList.add("hidden");
@@ -915,7 +961,6 @@ function normalizarTreinos(treinos){
       if(typeof t.periodo.fim === "undefined") t.periodo.fim = null;
     }
 
-    // cardio
     if(typeof t.cardio !== "object" || t.cardio === null){
       t.cardio = { enabled: false, items: [] };
     } else {
@@ -927,7 +972,6 @@ function normalizarTreinos(treinos){
       }));
     }
 
-    // alternativas
     if(!Array.isArray(t.exercicios)) t.exercicios = [];
     t.exercicios.forEach(e=>{
       if(typeof e.altObrigatorio !== "boolean") e.altObrigatorio = false;
@@ -938,7 +982,7 @@ function normalizarTreinos(treinos){
         reps: Number(a?.reps) || null,
         descanso: (typeof a?.descanso === "number") ? a.descanso : (Number(a?.descanso) || null)
       }));
-      if(typeof e.selectedAlt !== "number") e.selectedAlt = 0; // 0=plano A, 1..=alternativas
+      if(typeof e.selectedAlt !== "number") e.selectedAlt = 0;
     });
 
     if(t.lastSession && typeof t.lastSession !== "object"){
@@ -1011,14 +1055,15 @@ function parseAltLinhas(raw){
     });
 }
 
-function altArrayToRaw(alts){
-  if(!Array.isArray(alts) || !alts.length) return "";
-  return alts.map(a=>{
-    const nome = a?.nome || "Alternativa";
-    const sr = (a?.series && a?.reps) ? `${a.series}x${a.reps}` : "";
-    const ds = (typeof a?.descanso === "number" && a.descanso !== null) ? `descanso ${a.descanso}` : "";
-    return [nome, sr, ds].filter(Boolean).join(" | ");
-  }).join("\n");
+function validarAltObrigatorias(exercicios){
+  const problemas = [];
+  exercicios.forEach((e)=>{
+    if(e.altObrigatorio){
+      const qtd = Array.isArray(e.alternativas) ? e.alternativas.length : 0;
+      if(qtd <= 0) problemas.push(e.nome);
+    }
+  });
+  return problemas;
 }
 
 /* =========================
@@ -1161,8 +1206,6 @@ function abrirConfigAlternativas(){
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de configurar alternativas.");
   }
 
-  // sempre reconstroi a lista (mais seguro e evita “vazamento”)
-  // mas tenta reaproveitar config anterior por índice/nome
   const prevDraft = altDraft.slice();
 
   altDraft = exercicios.map((e, idx)=>{
@@ -1172,12 +1215,7 @@ function abrirConfigAlternativas(){
       e.altRaw = (prev.altRaw ?? "");
       return e;
     }
-    // se tiver vindo de um treino já existente (alternativas já eram array), converte pra raw
-    if(Array.isArray(e.alternativas) && e.alternativas.length){
-      e.altRaw = altArrayToRaw(e.alternativas);
-    } else {
-      e.altRaw = "";
-    }
+    e.altRaw = "";
     return e;
   });
 
@@ -1212,19 +1250,6 @@ function limparAlternativasCadastro(){
   altDraft = [];
   altDraftDirty = false;
   document.getElementById("boxAlternativasCadastro").classList.add("hidden");
-}
-
-function validarAltObrigatorias(exercicios){
-  const problemas = [];
-  exercicios.forEach((e)=>{
-    if(e.altObrigatorio){
-      const qtd = Array.isArray(e.alternativas) ? e.alternativas.length : 0;
-      if(qtd <= 0){
-        problemas.push(e.nome);
-      }
-    }
-  });
-  return problemas;
 }
 
 /* =========================
@@ -1719,7 +1744,6 @@ function finalizar(){
 
   setTreinos(treinos);
 
-  // registra o dia no log semanal
   addTrainingDay(hojeISODate());
 
   (treinoAtual.exercicios || []).forEach(e=>{
@@ -1833,6 +1857,9 @@ document.getElementById("navBackup").onclick = () => {
   abrirMenuBackup();
 };
 
+/* apagar treino */
+document.getElementById("btnApagarTreino").onclick = apagarTreinoAtual;
+
 /* modal troca */
 document.getElementById("btnFecharModalTroca").onclick = fecharModalTroca;
 document.getElementById("modalTroca").addEventListener("click", (ev)=>{
@@ -1887,13 +1914,19 @@ document.getElementById("btnSalvar").onclick = () => {
     return alert("Tem exercício sem séries/reps no formato NxM (ex: 2x10). Corrija antes de salvar.");
   }
 
-  // aplica alternativas do draft (se existir)
   if(altDraft.length && !altDraftDirty){
     exercicios = exercicios.map((e, idx)=>{
       const d = altDraft[idx];
       if(d && d.nome === e.nome){
         e.altObrigatorio = !!d.altObrigatorio;
         e.alternativas = parseAltLinhas(d.altRaw);
+
+        e.alternativas = (e.alternativas || []).map(a => ({
+          nome: a.nome || "Alternativa",
+          series: a.series || e.series,
+          reps: a.reps || e.reps,
+          descanso: (typeof a.descanso === "number") ? a.descanso : e.descanso
+        }));
       }
       return e;
     });
